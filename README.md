@@ -4,7 +4,7 @@ A command line client tool for [takler](https://github.com/perillaroc/takler).
 
 # LICENSE
 
-Copyright 2022-2023, Perilla Roc at cemc-oper.
+Copyright 2022-2024, developers at cemc-oper.
 
 `takler` is licensed under [Apache License, Version 2.0](./LICENSE).
 
