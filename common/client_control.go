@@ -2,88 +2,81 @@ package common
 
 import (
 	"context"
-	pb "github.com/perillaroc/takler-client/takler_protocol"
 	"log"
 	"time"
+
+	pb "github.com/perillaroc/takler-client/takler_protocol"
 )
 
-func (c *TaklerServiceClient) RunCommandRequeue(nodePaths []string) {
-	c.createConnection()
-	defer c.closeConnection()
+func (c *TaklerServiceClient) RunCommandRequeue(nodePaths []string) error {
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	c.createClient()
+		r, err := client.RunCommandRequeue(ctx, &pb.RequeueCommand{
+			NodePath: nodePaths,
+		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		if err != nil {
+			log.Fatalf("could not requeue: %v", err)
+		}
 
-	r, err := c.client.RunCommandRequeue(ctx, &pb.RequeueCommand{
-		NodePath: nodePaths,
+		log.Printf("%d", r.GetFlag())
+		return nil
 	})
-
-	if err != nil {
-		log.Fatalf("could not requeue: %v", err)
-	}
-
-	log.Printf("%d", r.GetFlag())
 }
 
-func (c *TaklerServiceClient) RunCommandSuspend(nodePaths []string) {
-	c.createConnection()
-	defer c.closeConnection()
+func (c *TaklerServiceClient) RunCommandSuspend(nodePaths []string) error {
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	c.createClient()
+		r, err := client.RunCommandSuspend(ctx, &pb.SuspendCommand{
+			NodePath: nodePaths,
+		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		if err != nil {
+			log.Fatalf("could not suspend: %v", err)
+		}
 
-	r, err := c.client.RunCommandSuspend(ctx, &pb.SuspendCommand{
-		NodePath: nodePaths,
+		log.Printf("%d", r.GetFlag())
+		return nil
 	})
-
-	if err != nil {
-		log.Fatalf("could not suspend: %v", err)
-	}
-
-	log.Printf("%d", r.GetFlag())
 }
 
-func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) {
-	c.createConnection()
-	defer c.closeConnection()
+func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) error {
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	c.createClient()
+		r, err := client.RunCommandResume(ctx, &pb.SuspendCommand{
+			NodePath: nodePaths,
+		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		if err != nil {
+			log.Fatalf("could not resume: %v", err)
+		}
 
-	r, err := c.client.RunCommandResume(ctx, &pb.SuspendCommand{
-		NodePath: nodePaths,
+		log.Printf("%d", r.GetFlag())
+		return nil
 	})
-
-	if err != nil {
-		log.Fatalf("could not resume: %v", err)
-	}
-
-	log.Printf("%d", r.GetFlag())
 }
 
-func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) {
-	c.createConnection()
-	defer c.closeConnection()
+func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) error {
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	c.createClient()
+		r, err := client.RunCommandRun(ctx, &pb.RunCommand{
+			NodePath: nodePaths,
+			Force:    force,
+		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		if err != nil {
+			log.Fatalf("could not run: %v", err)
+		}
 
-	r, err := c.client.RunCommandRun(ctx, &pb.RunCommand{
-		NodePath: nodePaths,
-		Force:    force,
+		log.Printf("%d", r.GetFlag())
+		return nil
 	})
-
-	if err != nil {
-		log.Fatalf("could not run: %v", err)
-	}
-
-	log.Printf("%d", r.GetFlag())
 }

@@ -3,9 +3,10 @@ package common
 import (
 	"context"
 	"fmt"
-	pb "github.com/perillaroc/takler-client/takler_protocol"
 	"log"
 	"time"
+
+	pb "github.com/perillaroc/takler-client/takler_protocol"
 )
 
 func (c *TaklerServiceClient) RunQueryShow(
@@ -14,48 +15,47 @@ func (c *TaklerServiceClient) RunQueryShow(
 	showLimit bool,
 	showEvent bool,
 	showMeter bool,
-) {
-	c.createConnection()
-	defer c.closeConnection()
+) error {
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	c.createClient()
+		r, err := client.RunRequestShow(ctx, &pb.ShowRequest{
+			ShowTrigger:   showTrigger,
+			ShowParameter: showParameter,
+			ShowLimit:     showLimit,
+			ShowEvent:     showEvent,
+			ShowMeter:     showMeter,
+		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		if err != nil {
+			log.Fatalf("could not init: %v", err)
+		}
 
-	r, err := c.client.RunRequestShow(ctx, &pb.ShowRequest{
-		ShowTrigger:   showTrigger,
-		ShowParameter: showParameter,
-		ShowLimit:     showLimit,
-		ShowEvent:     showEvent,
-		ShowMeter:     showMeter,
+		fmt.Print(r.GetOutput())
+		return nil
 	})
-
-	if err != nil {
-		log.Fatalf("could not init: %v", err)
-	}
-
-	fmt.Print(r.GetOutput())
 }
 
-func (c *TaklerServiceClient) RunQueryPing() {
+func (c *TaklerServiceClient) RunQueryPing() error {
+	// The measured duration covers building the connection as well, as that is
+	// the part a ping is meant to prove.
 	startTime := time.Now()
-	c.createConnection()
-	defer c.closeConnection()
 
-	c.createClient()
+	return c.withConnection(func(client pb.TaklerServerClient) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		_, err := client.RunRequestPing(ctx, &pb.PingRequest{})
 
-	_, err := c.client.RunRequestPing(ctx, &pb.PingRequest{})
+		if err != nil {
+			log.Fatalf("ping server (%s:%s) failed: %v", c.Host, c.Port, err)
+		}
 
-	if err != nil {
-		log.Fatalf("ping server (%s:%s) failed: %v", c.Host, c.Port, err)
-	}
+		endTime := time.Now()
+		d := endTime.Sub(startTime)
 
-	endTime := time.Now()
-	d := endTime.Sub(startTime)
-
-	fmt.Printf("ping server (%s:%s) succeeded in %v\n", c.Host, c.Port, d)
+		fmt.Printf("ping server (%s:%s) succeeded in %v\n", c.Host, c.Port, d)
+		return nil
+	})
 }
