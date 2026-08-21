@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -26,10 +27,50 @@ type Server struct {
 	Address Address `yaml:"address"`
 }
 
-type ConnectConfig struct {
-	Server Server `yaml:"server"`
+// Security holds the subset of the connect config's security section which the
+// client needs. The server only fields (certificate, key, whitelist, auth mode,
+// zombie policy, audit file) are deliberately not declared here.
+type Security struct {
+	CaFile             string `yaml:"ca_file"`
+	ServerName         string `yaml:"server_name"`
+	OperatorSecretFile string `yaml:"operator_secret_file"`
 }
 
+type ConnectConfig struct {
+	Server   Server   `yaml:"server"`
+	Security Security `yaml:"security"`
+}
+
+// GetCaFile returns the configured client CA certificate file path,
+// or an empty string when it is not configured.
+func (c *ConnectConfig) GetCaFile() string {
+	if c == nil {
+		return ""
+	}
+	return c.Security.CaFile
+}
+
+// GetServerName returns the configured certificate host name override,
+// or an empty string when it is not configured.
+func (c *ConnectConfig) GetServerName() string {
+	if c == nil {
+		return ""
+	}
+	return c.Security.ServerName
+}
+
+// GetOperatorSecretFile returns the configured operator secret file path,
+// or an empty string when it is not configured.
+func (c *ConnectConfig) GetOperatorSecretFile() string {
+	if c == nil {
+		return ""
+	}
+	return c.Security.OperatorSecretFile
+}
+
+// loadConnectConfig parses the connect config file. Unknown sections, such as
+// the server side only checkpoint section, are ignored rather than rejected:
+// yaml.Unmarshal does not enable KnownFields.
 func loadConnectConfig(filePath string) (*ConnectConfig, error) {
 	buf, err := os.ReadFile(filePath)
 	if err != nil {
