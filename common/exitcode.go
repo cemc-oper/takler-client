@@ -89,6 +89,15 @@ func ExitCodeForErrorCode(code int32) int {
 // and it covers the auth interceptor's refusals (requirement 15.5). Every other
 // status code is a transport level failure that the Call_Wrapper retries until
 // the Retry_Window is exhausted, which ends as unreachable (requirement 15.4).
+//
+// Callers must only reach this function for a call that failed, so codes.OK is
+// undefined input. It falls into the default branch and returns ExitUnreachable,
+// which is the conservative choice: a non zero exit makes the caller's bug
+// visible, whereas returning ExitOK would report success for a call the client
+// never validated, and that is the worse failure mode. This fallback is not part
+// of the cross-language contract; the Python client has no equivalent path,
+// because a successful call returns its response and never converts a status
+// code to an exit code.
 func ExitCodeForStatus(code codes.Code) int {
 	switch code {
 	case codes.InvalidArgument, codes.NotFound, codes.PermissionDenied, codes.Unauthenticated:
