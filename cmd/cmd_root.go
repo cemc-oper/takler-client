@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 const appCommand = "takler_client"
@@ -51,14 +52,20 @@ func (b *commandsBuilder) build() *commandsBuilder {
 }
 
 func newCommandsBuilder() *commandsBuilder {
-	return &commandsBuilder{
-		rootCommand: &cobra.Command{
-			Use:   appCommand,
-			Short: "A CLI client for Takler.",
-			Long:  "A CLI client for Takler.",
-			Run: func(cmd *cobra.Command, args []string) {
-			},
+	rootCommand := &cobra.Command{
+		Use:   appCommand,
+		Short: "A CLI client for Takler.",
+		Long:  "A CLI client for Takler.",
+		Run: func(cmd *cobra.Command, args []string) {
 		},
+	}
+
+	// The TLS and credential options are persistent flags of the root command,
+	// so every subcommand accepts them (requirements 13.4, 13.5, 13.11).
+	globalFlags.register(rootCommand)
+
+	return &commandsBuilder{
+		rootCommand: rootCommand,
 	}
 }
 
