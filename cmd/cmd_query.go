@@ -1,8 +1,14 @@
+// The Query_Commands, i.e. the subcommands that only read.
+//
+// Unlike a command response, a query response carries no flag, so there is
+// nothing to classify: the common method prints the payload the operator asked
+// for and a failure comes back as an *ExitError that RunE hands to Execute
+// (requirement 15.9).
 package cmd
 
 import (
 	"fmt"
-	"github.com/perillaroc/takler-client/common"
+
 	"github.com/spf13/cobra"
 )
 
@@ -50,9 +56,12 @@ func newShowCommand() *showCommand {
 }
 
 func (mc *showCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
 
-	fmt.Printf("%s:%s show\n", host, port)
+	fmt.Printf("%s:%s show\n", client.Host, client.Port)
 
 	if mc.showAll {
 		mc.showTrigger = true
@@ -62,15 +71,13 @@ func (mc *showCommand) runCommand(cmd *cobra.Command, args []string) error {
 		mc.showMeter = true
 	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunQueryShow(
+	_, err = client.RunQueryShow(
 		mc.showTrigger,
 		mc.showParameter,
 		mc.showLimit,
 		mc.showEvent,
 		mc.showMeter)
-
-	return nil
+	return err
 }
 
 /*
@@ -104,12 +111,13 @@ func newPingCommand() *pingCommand {
 }
 
 func (mc *pingCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
 
-	fmt.Printf("%s:%s ping\n", host, port)
+	fmt.Printf("%s:%s ping\n", client.Host, client.Port)
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunQueryPing()
-
-	return nil
+	_, err = client.RunQueryPing()
+	return err
 }

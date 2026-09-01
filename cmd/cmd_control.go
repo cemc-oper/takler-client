@@ -1,8 +1,16 @@
+// The Control_Commands, i.e. the subcommands an operator invokes to change the
+// server's state.
+//
+// Each RunE builds the client, makes one common call and reports the response:
+// a zero flag prints the Error_Code classification name, a non zero one returns
+// an *ExitError up to Execute (requirements 15.8, 15.9). NO_TAKLER is not
+// consulted here, as it is defined for Child_Commands only (requirement 15.10):
+// an operator typing "requeue" means it.
 package cmd
 
 import (
 	"fmt"
-	"github.com/perillaroc/takler-client/common"
+
 	"github.com/spf13/cobra"
 )
 
@@ -36,15 +44,20 @@ func newRequeueCommand() *requeueCommand {
 }
 
 func (mc *requeueCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
 	nodePaths := args
+	fmt.Printf("%s:%s requeue: %s\n", client.Host, client.Port, nodePaths)
 
-	fmt.Printf("%s:%s requeue: %s\n", host, port, nodePaths)
+	response, err := client.RunCommandRequeue(nodePaths)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandRequeue(nodePaths)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -77,15 +90,20 @@ func newSuspendCommand() *suspendCommand {
 }
 
 func (mc *suspendCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
 	nodePaths := args
+	fmt.Printf("%s:%s suspend: %s\n", client.Host, client.Port, nodePaths)
 
-	fmt.Printf("%s:%s suspend: %s\n", host, port, nodePaths)
+	response, err := client.RunCommandSuspend(nodePaths)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandSuspend(nodePaths)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -118,15 +136,20 @@ func newResumeCommand() *resumeCommand {
 }
 
 func (mc *resumeCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
 	nodePaths := args
+	fmt.Printf("%s:%s resume: %s\n", client.Host, client.Port, nodePaths)
 
-	fmt.Printf("%s:%s resume: %s\n", host, port, nodePaths)
+	response, err := client.RunCommandResume(nodePaths)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandResume(nodePaths)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -161,13 +184,18 @@ func newRunCommand() *runCommand {
 }
 
 func (mc *runCommand) runCommand(cmd *cobra.Command, args []string) error {
-	host, port := getHostAndPort(mc.host, mc.port)
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
 	nodePaths := args
+	fmt.Printf("%s:%s run: %s\n", client.Host, client.Port, nodePaths)
 
-	fmt.Printf("%s:%s run: %s\n", host, port, nodePaths)
+	response, err := client.RunCommandRun(nodePaths, mc.force)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandRun(nodePaths, mc.force)
-
-	return nil
+	return reportCommandResponse(response)
 }

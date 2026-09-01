@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/perillaroc/takler-client/common"
 	"gopkg.in/yaml.v3"
 )
 
@@ -86,37 +86,64 @@ func loadConnectConfig(filePath string) (*ConnectConfig, error) {
 	return c, nil
 }
 
-func getHostAndPort(host string, port string) (string, string) {
-	resultHost := DefaultHost
-	resultPort := DefaultPort
+// serverTarget is the resolved address of the server, together with the connect
+// config it was resolved from.
+//
+// The config is carried along because it is also the last precedence level of
+// the TLS and credential settings (requirement 13.6): loading it once and
+// handing both parts to the caller keeps a command from reading the same file
+// twice, and keeps the two answers from disagreeing.
+type serverTarget struct {
+	host string
+	port string
+
+	// config is the parsed connect config, or nil when TAKLER_CONNECT_FILE is
+	// not set. The ConnectConfig accessors tolerate a nil receiver.
+	config *ConnectConfig
+}
+
+// resolveServerTarget resolves the server address from, in increasing order of
+// precedence: the defaults, the TAKLER_HOST / TAKLER_PORT environment
+// variables, the connect config, and the command's own --host / --port options.
+//
+// An unreadable or unparseable connect config returns an *ExitError with
+// ExitRequestError rather than ending the process: it is a configuration error
+// of the request, and the exit code is the cmd layer's to decide, in one place
+// (requirement 15.9).
+func resolveServerTarget(host string, port string) (serverTarget, error) {
+	target := serverTarget{host: DefaultHost, port: DefaultPort}
 
 	envHost := os.Getenv(TaklerHost)
 	if len(envHost) > 0 {
-		resultHost = envHost
+		target.host = envHost
 	}
 	envPort := os.Getenv(TaklerPort)
 	if len(envPort) > 0 {
-		resultPort = envPort
+		target.port = envPort
 	}
 
 	connectFilePath := os.Getenv(TaklerConnectFile)
 	if len(connectFilePath) > 0 {
 		connectConfig, err := loadConnectConfig(connectFilePath)
 		if err != nil {
-			log.Fatalf("load connect config filed: %s", connectFilePath)
+			return serverTarget{}, common.NewExitError(
+				common.ExitRequestError,
+				fmt.Sprintf("cannot load the connect config %s: %v", connectFilePath, err),
+			)
 		}
-		resultHost = connectConfig.Server.Address.Hostname
-		resultPort = connectConfig.Server.Address.Port
+		target.config = connectConfig
+		target.host = connectConfig.Server.Address.Hostname
+		target.port = connectConfig.Server.Address.Port
 	}
 
 	if len(host) > 0 {
-		resultHost = host
+		target.host = host
 	}
 	if len(port) > 0 {
-		resultPort = port
+		target.port = port
 	}
 
-	return resultHost, resultPort
+	return target, nil
 }
 
 // Deprecated: getHost is deprecated. Use getHostAndPort instead.

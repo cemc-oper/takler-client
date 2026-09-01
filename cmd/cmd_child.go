@@ -1,10 +1,15 @@
+// The five Child_Commands, i.e. the subcommands a job script invokes.
+//
+// Every RunE here has the same shape: the NO_TAKLER short circuit first, then
+// the client, then one common call, then the response. The short circuit comes
+// before anything else on purpose (requirement 15.10): no connect config is
+// read, no connection is made, and the process ends with exit code 0.
 package cmd
 
 import (
 	"fmt"
-	"github.com/perillaroc/takler-client/common"
+
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type ChildCommand struct {
@@ -17,13 +22,10 @@ type ChildCommand struct {
 	}
 }
 
-func ignoreChangeCommand() bool {
-	_, ok := os.LookupEnv("NO_TAKLER")
-	if !ok {
-		return false
-	} else {
-		return true
-	}
+// reportIgnored prints the line a short circuited child command leaves behind,
+// so a job log shows why nothing happened.
+func reportIgnored() {
+	fmt.Printf("ignore because %s is set.\n", NoTakler)
 }
 
 /*********************************************
@@ -56,21 +58,26 @@ func newInitCommand() *initCommand {
 }
 
 func (mc *initCommand) runCommand(cmd *cobra.Command, args []string) error {
-	if ignoreChangeCommand() {
-		fmt.Printf("ignore because NO_TAKLER is set.\n")
+	if noTaklerIsSet() {
+		reportIgnored()
 		return nil
 	}
 
-	host, port := getHostAndPort(mc.childOptions.host, mc.childOptions.port)
+	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
+	if err != nil {
+		return err
+	}
+
 	nodePath := getNodePath(mc.childOptions.nodePath)
-
 	taskId := mc.taskId
-	fmt.Printf("%s:%s init %s with %s\n", host, port, nodePath, taskId)
+	fmt.Printf("%s:%s init %s with %s\n", client.Host, client.Port, nodePath, taskId)
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandInit(nodePath, taskId)
+	response, err := client.RunCommandInit(nodePath, taskId)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -99,20 +106,25 @@ func newCompleteCommand() *completeCommand {
 }
 
 func (mc *completeCommand) runCommand(cmd *cobra.Command, args []string) error {
-	if ignoreChangeCommand() {
-		fmt.Printf("ignore because NO_TAKLER is set.\n")
+	if noTaklerIsSet() {
+		reportIgnored()
 		return nil
 	}
 
-	host, port := getHostAndPort(mc.childOptions.host, mc.childOptions.port)
+	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
+	if err != nil {
+		return err
+	}
+
 	nodePath := getNodePath(mc.childOptions.nodePath)
+	fmt.Printf("%s:%s complete %s\n", client.Host, client.Port, nodePath)
 
-	fmt.Printf("%s:%s complete %s\n", host, port, nodePath)
+	response, err := client.RunCommandComplete(nodePath)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandComplete(nodePath)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -144,21 +156,26 @@ func newAbortCommand() *abortCommand {
 }
 
 func (mc *abortCommand) runCommand(cmd *cobra.Command, args []string) error {
-	if ignoreChangeCommand() {
-		fmt.Printf("ignore because NO_TAKLER is set.\n")
+	if noTaklerIsSet() {
+		reportIgnored()
 		return nil
 	}
 
-	host, port := getHostAndPort(mc.childOptions.host, mc.childOptions.port)
+	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
+	if err != nil {
+		return err
+	}
+
 	nodePath := getNodePath(mc.childOptions.nodePath)
 	reason := mc.reason
+	fmt.Printf("%s:%s abort %s: %s\n", client.Host, client.Port, nodePath, reason)
 
-	fmt.Printf("%s:%s abort %s: %s\n", host, port, nodePath, reason)
+	response, err := client.RunCommandAbort(nodePath, reason)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandAbort(nodePath, reason)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -191,21 +208,26 @@ func newEventCommand() *eventCommand {
 }
 
 func (mc *eventCommand) runCommand(cmd *cobra.Command, args []string) error {
-	if ignoreChangeCommand() {
-		fmt.Printf("ignore because NO_TAKLER is set.\n")
+	if noTaklerIsSet() {
+		reportIgnored()
 		return nil
 	}
 
-	host, port := getHostAndPort(mc.childOptions.host, mc.childOptions.port)
+	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
+	if err != nil {
+		return err
+	}
+
 	nodePath := getNodePath(mc.childOptions.nodePath)
 	eventName := mc.eventName
+	fmt.Printf("%s:%s event %s: %s\n", client.Host, client.Port, nodePath, eventName)
 
-	fmt.Printf("%s:%s event %s: %s\n", host, port, nodePath, eventName)
+	response, err := client.RunCommandEvent(nodePath, eventName)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandEvent(nodePath, eventName)
-
-	return nil
+	return reportCommandResponse(response)
 }
 
 /*********************************************
@@ -241,20 +263,28 @@ func newMeterCommand() *meterCommand {
 }
 
 func (mc *meterCommand) runCommand(cmd *cobra.Command, args []string) error {
-	if ignoreChangeCommand() {
-		fmt.Printf("ignore because NO_TAKLER is set.\n")
+	if noTaklerIsSet() {
+		reportIgnored()
 		return nil
 	}
 
-	host, port := getHostAndPort(mc.childOptions.host, mc.childOptions.port)
+	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
+	if err != nil {
+		return err
+	}
+
 	nodePath := getNodePath(mc.childOptions.nodePath)
 	meterName := mc.meterName
 	meterValue := mc.meterValue
+	fmt.Printf(
+		"%s:%s meter %s: %s with %s\n",
+		client.Host, client.Port, nodePath, meterName, meterValue,
+	)
 
-	fmt.Printf("%s:%s meter %s: %s with %s\n", host, port, nodePath, meterName, meterValue)
+	response, err := client.RunCommandMeter(nodePath, meterName, meterValue)
+	if err != nil {
+		return err
+	}
 
-	client := common.CreateTaklerServiceClient(host, port)
-	client.RunCommandMeter(nodePath, meterName, meterValue)
-
-	return nil
+	return reportCommandResponse(response)
 }
