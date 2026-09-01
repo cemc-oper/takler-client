@@ -28,10 +28,58 @@ import (
 	"os"
 	"time"
 
+	pb "github.com/perillaroc/takler-client/takler_protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+// CallCommand opens the connection, sends req through Call and closes the
+// connection again, returning whatever the server answered.
+//
+// It is what a command method calls, and it is the reason a command method is
+// down to building a request and reading a response (requirement 14.1): the
+// connection lifetime lives in withConnection, the per-attempt timeout, the
+// retry window and the credential injection live in Call, and neither appears
+// at the call site.
+//
+// invoke is a method expression of the generated client interface, e.g.
+// pb.TaklerServerClient.RunCommandInit. Spelling it that way rather than as a
+// method value is what lets a call site name the RPC in one identifier: the
+// receiver is not known before the connection exists, so a method value would
+// have to be produced inside a closure, and that closure's signature would have
+// to be written out in full at every one of the eleven call sites. Both type
+// parameters are inferred from the method expression together with req.
+//
+// The context is the process-wide background one: a command method has no
+// caller-supplied deadline to honour, and the deadlines that matter -- the per
+// attempt timeout and the Retry_Window -- are the policy's, inside Call.
+func CallCommand[Req any, Resp any](
+	c *TaklerServiceClient,
+	name string,
+	kind CommandKind,
+	req Req,
+	invoke func(pb.TaklerServerClient, context.Context, Req, ...grpc.CallOption) (Resp, error),
+) (Resp, error) {
+	var response Resp
+
+	err := c.withConnection(func(client pb.TaklerServerClient) error {
+		var err error
+		response, err = Call(
+			c, context.Background(), name, kind, req,
+			func(ctx context.Context, request Req, opts ...grpc.CallOption) (Resp, error) {
+				return invoke(client, ctx, request, opts...)
+			},
+		)
+		return err
+	})
+	if err != nil {
+		var zero Resp
+		return zero, err
+	}
+
+	return response, nil
+}
 
 // Call invokes invoke with a per-attempt timeout, backoff retry, credential
 // injection and error to exit code mapping (requirement 14.1).

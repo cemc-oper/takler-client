@@ -1,61 +1,65 @@
+// The Query_Commands, i.e. the reads an operator performs.
+//
+// As in client_child.go, a method here builds a request and reads the response;
+// the connection, the timeout, the retry and the credentials belong to
+// CallCommand (requirements 14.1, 13.7), and a failure returns as an *ExitError
+// instead of ending the process (requirement 15.9).
+//
+// Unlike a command response, a query response carries no flag: what these two
+// methods read out of the response is the payload the operator asked for, which
+// is why they print it here, exactly as the Python client's run_request_show
+// does.
 package common
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"time"
 
 	pb "github.com/perillaroc/takler-client/takler_protocol"
 )
 
+// RunQueryShow prints the server's bunch tree, with the item classes the flags
+// select.
 func (c *TaklerServiceClient) RunQueryShow(
 	showTrigger bool,
 	showParameter bool,
 	showLimit bool,
 	showEvent bool,
 	showMeter bool,
-) error {
-	return c.withConnection(func(client pb.TaklerServerClient) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+) (*pb.ShowResponse, error) {
+	response, err := CallCommand(c, "show", KindQuery, &pb.ShowRequest{
+		ShowTrigger:   showTrigger,
+		ShowParameter: showParameter,
+		ShowLimit:     showLimit,
+		ShowEvent:     showEvent,
+		ShowMeter:     showMeter,
+	}, pb.TaklerServerClient.RunRequestShow)
+	if err != nil {
+		return nil, err
+	}
 
-		r, err := client.RunRequestShow(ctx, &pb.ShowRequest{
-			ShowTrigger:   showTrigger,
-			ShowParameter: showParameter,
-			ShowLimit:     showLimit,
-			ShowEvent:     showEvent,
-			ShowMeter:     showMeter,
-		})
-
-		if err != nil {
-			log.Fatalf("could not init: %v", err)
-		}
-
-		fmt.Print(r.GetOutput())
-		return nil
-	})
+	fmt.Print(response.GetOutput())
+	return response, nil
 }
 
-func (c *TaklerServiceClient) RunQueryPing() error {
-	// The measured duration covers building the connection as well, as that is
-	// the part a ping is meant to prove.
+// RunQueryPing checks that the server answers, and reports how long that took.
+//
+// The measured duration covers building the connection and every retried
+// attempt as well, as reaching the server at all is what a ping is meant to
+// prove.
+func (c *TaklerServiceClient) RunQueryPing() (*pb.PingResponse, error) {
 	startTime := time.Now()
 
-	return c.withConnection(func(client pb.TaklerServerClient) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+	response, err := CallCommand(
+		c, "ping", KindQuery, &pb.PingRequest{}, pb.TaklerServerClient.RunRequestPing,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-		_, err := client.RunRequestPing(ctx, &pb.PingRequest{})
-
-		if err != nil {
-			log.Fatalf("ping server (%s:%s) failed: %v", c.Host, c.Port, err)
-		}
-
-		endTime := time.Now()
-		d := endTime.Sub(startTime)
-
-		fmt.Printf("ping server (%s:%s) succeeded in %v\n", c.Host, c.Port, d)
-		return nil
-	})
+	fmt.Printf(
+		"ping server (%s:%s) succeeded in %v\n",
+		c.Host, c.Port, time.Since(startTime),
+	)
+	return response, nil
 }
