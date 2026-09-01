@@ -2,6 +2,19 @@
 
 A command line client tool for [takler](https://github.com/perillaroc/takler).
 
+# Development
+
+```bash
+make            # build bin/takler_client
+make test       # go test ./...
+make cover      # write coverage.out and print the total
+make cover-check # statement coverage gate: common and cmd at 70% or above
+make check      # go vet, gofmt check, tests and the coverage gate
+```
+
+`takler_protocol` is generated code and is excluded from the coverage gate. The
+threshold can be raised for a single run with `COVERAGE_THRESHOLD=80 make cover-check`.
+
 # LICENSE
 
 Copyright 2022-2024, developers at cemc-oper.
