@@ -10,7 +10,7 @@
 package common
 
 import (
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // RunCommandRequeue requeues every node in nodePaths.

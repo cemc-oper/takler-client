@@ -17,7 +17,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/perillaroc/takler-client/common"
+	"github.com/cemc-oper/takler-client/common"
 )
 
 // commandRunners returns every command's RunE, keyed by the subcommand name.

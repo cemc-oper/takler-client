@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/perillaroc/takler-client/common"
+	"github.com/cemc-oper/takler-client/common"
 	"github.com/spf13/cobra"
 )
 

@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // RunQueryShow prints the server's bunch tree, with the item classes the flags

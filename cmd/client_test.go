@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/perillaroc/takler-client/common"
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	"github.com/cemc-oper/takler-client/common"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // captureStdout runs body with standard output redirected, and returns what it

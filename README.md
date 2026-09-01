@@ -1,6 +1,6 @@
 # takler-client
 
-A command line client tool for [takler](https://github.com/perillaroc/takler).
+A command line client tool for [takler](https://github.com/cemc-oper/takler).
 
 # Development
 

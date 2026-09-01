@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/perillaroc/takler-client/common"
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	"github.com/cemc-oper/takler-client/common"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // NoTakler is the environment variable which, when set, makes a Child_Command a

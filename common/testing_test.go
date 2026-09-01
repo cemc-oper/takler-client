@@ -35,7 +35,7 @@ import (
 	"sync"
 	"testing"
 
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

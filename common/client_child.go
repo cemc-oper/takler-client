@@ -12,7 +12,7 @@
 package common
 
 import (
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // RunCommandInit reports that the task at nodePath has started, under the job

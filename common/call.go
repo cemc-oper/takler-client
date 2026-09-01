@@ -28,7 +28,7 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"

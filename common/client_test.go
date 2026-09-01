@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/perillaroc/takler-client/takler_protocol"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
 // The target must keep the passthrough scheme the replaced grpc.Dial defaulted

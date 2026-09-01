@@ -1,4 +1,4 @@
-module github.com/perillaroc/takler-client
+module github.com/cemc-oper/takler-client
 
 go 1.23
 

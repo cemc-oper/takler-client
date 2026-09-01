@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/perillaroc/takler-client/common"
+	"github.com/cemc-oper/takler-client/common"
 )
 
 // The four exit codes a command can end with must survive the trip through
