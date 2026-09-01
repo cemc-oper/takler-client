@@ -1,0 +1,59 @@
+# 测试与静态检查流程：装好 Go 工具链，跑 `go vet`、格式检查、`go test` 与覆盖率门槛。
+#
+# 每一步都调用 `Makefile` 里的目标，而不是把命令抄进 workflow。这样 CI 的失败在本机
+# 用一条 `make check` 就能复现，也不会出现「CI 的命令和 Makefile 的命令悄悄不一致」的
+# 情况。门槛本身在 `scripts/check_coverage.sh`（逐包语句覆盖率 ≥ 70%，生成代码包
+# `takler_protocol` 排除在外）。
+#
+# 目标拆成多个 step 而不是一次 `make check`，是为了让运行摘要直接指出是哪一环失败。
+#
+# Go 版本跟随 `go.mod` 的 `go` 指令：`setup-go` 的 `go-version-file` 从该文件读取，
+# 免得两处版本号各自漂移。
+
+name: test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    name: test (Go)
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        # 跨 workflow 复用模块下载与构建缓存，缓存键跟随 `go.sum`。
+        cache-dependency-path: go.sum
+    - name: Vet
+      run: make vet
+    - name: Check formatting with gofmt
+      run: make fmt-check
+    - name: Test
+      run: make test
+    # cover 写出被门槛覆盖的那些包的合并 profile，并打印总覆盖率，便于在日志里直接
+    # 看到数字；profile 作为构件上传，可以下载后用 `go tool cover -html` 逐行查看。
+    - name: Collect coverage
+      run: make cover
+    - name: Coverage gate
+      run: make cover-check
+    - name: Upload coverage profile
+      uses: actions/upload-artifact@v4
+      # 即使门槛失败也要留下 profile——覆盖率不够时恰恰最需要看它。若更早的步骤就挂了
+      # （比如测试失败），profile 可能压根没生成，这时只警告不再叠加一次失败。
+      if: always()
+      with:
+        name: coverage-profile
+        path: coverage.out
+        if-no-files-found: warn

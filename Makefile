@@ -1,4 +1,4 @@
-.PHONY: all test cover cover-check check
+.PHONY: all vet fmt-check test cover cover-check check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -10,6 +10,15 @@ all:
 	go build \
 		-o ${BIN_PATH}/takler_client \
 		main.go
+
+vet:
+	go vet ./...
+
+# fmt-check fails when some file is not gofmt clean. gofmt itself always exits 0,
+# so the exit code has to come from its output being non empty; the file list is
+# printed again to say which files need formatting.
+fmt-check:
+	test -z "$$(gofmt -l .)" || { gofmt -l .; exit 1; }
 
 test:
 	go test ./...
@@ -24,9 +33,7 @@ cover:
 cover-check:
 	./scripts/check_coverage.sh
 
-# check is what CI runs, and what to run locally before pushing.
-check:
-	go vet ./...
-	test -z "$$(gofmt -l .)" || { gofmt -l .; exit 1; }
-	go test ./...
-	./scripts/check_coverage.sh
+# check is what CI runs, and what to run locally before pushing. The CI workflow
+# invokes these same targets one per step, so that the failing step is visible in
+# the run summary while "make check" stays the single local entry point.
+check: vet fmt-check test cover-check
