@@ -18,7 +18,7 @@ import (
 // to, so that the address is resolved by the dialer instead of by gRPC's dns
 // resolver, which rejects host names such as an HPC login node's login_a06.
 func TestClientTargetKeepsPassthroughScheme(t *testing.T) {
-	client := CreateTaklerServiceClient("login_a06", "33083")
+	client := NewTaklerServiceClient("login_a06", "33083", SecurityLevels{})
 
 	if got, want := client.getServerAddress(), "login_a06:33083"; got != want {
 		t.Errorf("server address = %q, want %q", got, want)
@@ -35,7 +35,7 @@ func TestClientTargetKeepsPassthroughScheme(t *testing.T) {
 func TestConnectWithoutCaCertificateSucceeds(t *testing.T) {
 	t.Setenv(TaklerTlsCaFile, "")
 
-	client := CreateTaklerServiceClient("localhost", "33083")
+	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
 
 	generated, err := client.connect()
 	if err != nil {
@@ -88,7 +88,7 @@ func TestConnectWithUnreadableCaCertificateReturnsExitError(t *testing.T) {
 // withConnection runs the body with a usable client and releases the connection
 // afterwards, which is the boilerplate every command method now shares.
 func TestWithConnectionClosesAfterTheBody(t *testing.T) {
-	client := CreateTaklerServiceClient("localhost", "33083")
+	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
 
 	called := 0
 	err := client.withConnection(func(generated pb.TaklerServerClient) error {
@@ -131,7 +131,7 @@ func TestWithConnectionSkipsTheBodyWhenConnectFails(t *testing.T) {
 // The body's error is the caller's error: nothing on the connection path
 // swallows or rewraps it.
 func TestWithConnectionReturnsTheBodyError(t *testing.T) {
-	client := CreateTaklerServiceClient("localhost", "33083")
+	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
 	want := NewExitError(ExitServerError, "body failed")
 
 	err := client.withConnection(func(pb.TaklerServerClient) error { return want })
@@ -144,7 +144,7 @@ func TestWithConnectionReturnsTheBodyError(t *testing.T) {
 // Every client carries Credentials, including one built without security levels,
 // so the Call_Wrapper can ask for the Credential_Metadata unconditionally.
 func TestClientAlwaysCarriesCredentials(t *testing.T) {
-	if got := CreateTaklerServiceClient("localhost", "33083").Credentials(); got == nil {
+	if got := NewTaklerServiceClient("localhost", "33083", SecurityLevels{}).Credentials(); got == nil {
 		t.Error("client built without security levels carries no credentials")
 	}
 

@@ -16,6 +16,7 @@ package common
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func newUnreachableClient(t *testing.T) *TaklerServiceClient {
 	t.Setenv(EnvRetryWindow, "0")
 	t.Setenv(TaklerTlsCaFile, "")
 	t.Setenv(EnvSecretFile, "")
-	return CreateTaklerServiceClient(unreachableHost, unreachablePort)
+	return NewTaklerServiceClient(unreachableHost, unreachablePort, SecurityLevels{})
 }
 
 // assertUnreachable checks that a call against the closed port came back as the
@@ -59,9 +60,18 @@ func assertUnreachable(t *testing.T, err error) {
 	}
 }
 
-// Every one of the eleven methods returns the Call_Wrapper's error rather than
-// dying, and does so without waiting on a per-method timeout of its own.
+// Every one of the sixteen methods returns the Call_Wrapper's error rather
+// than dying, and does so without waiting on a per-method timeout of its own.
+//
+// load is the exception that proves the setup: it reads its flow file before
+// dialling, so the table hands it a real file -- with a missing one the
+// failure would be the file's, not the unreachable server's.
 func TestCommandMethodsReturnTheCallWrapperError(t *testing.T) {
+	flowFile := filepath.Join(t.TempDir(), "flow1.json")
+	if err := os.WriteFile(flowFile, []byte("{}"), 0o600); err != nil {
+		t.Fatalf("write flow file: %v", err)
+	}
+
 	cases := []struct {
 		name string
 		call func(*TaklerServiceClient) error
@@ -102,12 +112,32 @@ func TestCommandMethodsReturnTheCallWrapperError(t *testing.T) {
 			_, err := c.RunCommandRun([]string{"/flow1"}, true)
 			return err
 		}},
+		{"force", func(c *TaklerServiceClient) error {
+			_, err := c.RunCommandForce([]string{"/flow1"}, "complete", true)
+			return err
+		}},
+		{"free-dep", func(c *TaklerServiceClient) error {
+			_, err := c.RunCommandFreeDep([]string{"/flow1"}, "all")
+			return err
+		}},
+		{"load", func(c *TaklerServiceClient) error {
+			_, err := c.RunCommandLoad("json", flowFile)
+			return err
+		}},
+		{"begin", func(c *TaklerServiceClient) error {
+			_, err := c.RunCommandBegin("flow1", false)
+			return err
+		}},
 		{"show", func(c *TaklerServiceClient) error {
 			_, err := c.RunQueryShow(true, true, true, true, true)
 			return err
 		}},
 		{"ping", func(c *TaklerServiceClient) error {
 			_, err := c.RunQueryPing()
+			return err
+		}},
+		{"coroutine", func(c *TaklerServiceClient) error {
+			_, err := c.RunQueryCoroutine()
 			return err
 		}},
 	}
@@ -130,7 +160,7 @@ func TestControlMethodSurfacesCredentialFailure(t *testing.T) {
 	t.Setenv(TaklerTlsCaFile, "")
 	t.Setenv(EnvSecretFile, missing)
 
-	client := CreateTaklerServiceClient(unreachableHost, unreachablePort)
+	client := NewTaklerServiceClient(unreachableHost, unreachablePort, SecurityLevels{})
 
 	_, err := client.RunCommandSuspend([]string{"/flow1"})
 	if err == nil {

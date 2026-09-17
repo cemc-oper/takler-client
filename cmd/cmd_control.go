@@ -23,7 +23,6 @@ type requeueCommand struct {
 
 	host string
 	port string
-	//nodePaths []string
 }
 
 func newRequeueCommand() *requeueCommand {
@@ -69,7 +68,6 @@ type suspendCommand struct {
 
 	host string
 	port string
-	//nodePaths []string
 }
 
 func newSuspendCommand() *suspendCommand {
@@ -115,7 +113,6 @@ type resumeCommand struct {
 
 	host string
 	port string
-	//nodePaths []string
 }
 
 func newResumeCommand() *resumeCommand {
@@ -162,7 +159,6 @@ type runCommand struct {
 	host  string
 	port  string
 	force bool
-	//nodePaths []string
 }
 
 func newRunCommand() *runCommand {
@@ -193,6 +189,200 @@ func (mc *runCommand) runCommand(cmd *cobra.Command, args []string) error {
 	fmt.Printf("%s:%s run: %s\n", client.Host, client.Port, nodePaths)
 
 	response, err := client.RunCommandRun(nodePaths, mc.force)
+	if err != nil {
+		return err
+	}
+
+	return reportCommandResponse(response)
+}
+
+/*********************************************
+	force
+ *********************************************/
+
+type forceCommand struct {
+	BaseCommand
+
+	host      string
+	port      string
+	recursive bool
+}
+
+func newForceCommand() *forceCommand {
+	c := &forceCommand{}
+	forceCmd := &cobra.Command{
+		Use:   "force state path...",
+		Short: "[control] change the node's state force, ignore whatever state it is now.",
+		Long:  "force given nodes to the given state",
+		Args:  cobra.MinimumNArgs(2),
+		RunE:  c.runCommand,
+	}
+
+	forceCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	forceCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	forceCmd.Flags().BoolVar(&c.recursive, "recursive", true, "recursive")
+
+	c.cmd = forceCmd
+	return c
+}
+
+func (mc *forceCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
+	state := args[0]
+	nodePaths := args[1:]
+	fmt.Printf("%s:%s force: %s %s\n", client.Host, client.Port, state, nodePaths)
+
+	response, err := client.RunCommandForce(nodePaths, state, mc.recursive)
+	if err != nil {
+		return err
+	}
+
+	return reportCommandResponse(response)
+}
+
+/*********************************************
+	free-dep
+ *********************************************/
+
+type freeDepCommand struct {
+	BaseCommand
+
+	host    string
+	port    string
+	depType string
+}
+
+func newFreeDepCommand() *freeDepCommand {
+	c := &freeDepCommand{}
+	freeDepCmd := &cobra.Command{
+		Use:   "free-dep path...",
+		Short: "[control] free dependencies for the node(s).",
+		Long:  "free dependencies for given nodes",
+		Args:  cobra.MinimumNArgs(1),
+		RunE:  c.runCommand,
+	}
+
+	freeDepCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	freeDepCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	freeDepCmd.Flags().StringVar(&c.depType, "dep-type", "all", "dependency type, [all, time, trigger]")
+
+	c.cmd = freeDepCmd
+	return c
+}
+
+func (mc *freeDepCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
+	nodePaths := args
+	fmt.Printf("%s:%s free-dep: %s %s\n", client.Host, client.Port, mc.depType, nodePaths)
+
+	response, err := client.RunCommandFreeDep(nodePaths, mc.depType)
+	if err != nil {
+		return err
+	}
+
+	return reportCommandResponse(response)
+}
+
+/*********************************************
+	load
+ *********************************************/
+
+type loadCommand struct {
+	BaseCommand
+
+	host     string
+	port     string
+	flowType string
+}
+
+func newLoadCommand() *loadCommand {
+	c := &loadCommand{}
+	loadCmd := &cobra.Command{
+		Use:   "load flow_file_path",
+		Short: "[control] load flow from file to server.",
+		Long:  "load flow from file to server",
+		Args:  cobra.ExactArgs(1),
+		RunE:  c.runCommand,
+	}
+
+	loadCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	loadCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	loadCmd.Flags().StringVar(&c.flowType, "flow-type", "json", "flow file type, [json]")
+
+	c.cmd = loadCmd
+	return c
+}
+
+func (mc *loadCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
+	flowFilePath := args[0]
+	fmt.Printf("%s:%s load: %s\n", client.Host, client.Port, flowFilePath)
+
+	response, err := client.RunCommandLoad(mc.flowType, flowFilePath)
+	if err != nil {
+		return err
+	}
+
+	return reportCommandResponse(response)
+}
+
+/*********************************************
+	begin
+ *********************************************/
+
+type beginCommand struct {
+	BaseCommand
+
+	host  string
+	port  string
+	force bool
+}
+
+func newBeginCommand() *beginCommand {
+	c := &beginCommand{}
+	beginCmd := &cobra.Command{
+		Use:   "begin [flow_name]",
+		Short: "[control] begin the flow(s): start the calendar and reset the node tree.",
+		Long:  "begin the named flow, or every flow when FLOW_NAME is omitted",
+		Args:  cobra.MaximumNArgs(1),
+		RunE:  c.runCommand,
+	}
+
+	beginCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	beginCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	beginCmd.Flags().BoolVar(&c.force, "force", false, "begin an already begun flow again")
+
+	c.cmd = beginCmd
+	return c
+}
+
+func (mc *beginCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
+	// An omitted flow name is the empty string, which the protocol reads as
+	// "all flows" -- the same convention the Python CLI documents.
+	flowName := ""
+	if len(args) > 0 {
+		flowName = args[0]
+	}
+	fmt.Printf("%s:%s begin: %s\n", client.Host, client.Port, flowName)
+
+	response, err := client.RunCommandBegin(flowName, mc.force)
 	if err != nil {
 		return err
 	}

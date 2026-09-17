@@ -42,6 +42,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/proto"
 )
 
 // fakeBufferSize is the bufconn buffer size. 1 MiB dwarfs every message this
@@ -61,6 +62,10 @@ type fakeCall struct {
 	// Metadata is a copy of the incoming metadata, lowercase keys as gRPC
 	// delivers them. Never nil, empty when the client sent none.
 	Metadata metadata.MD
+
+	// Request is the request message as received, e.g. *pb.ForceCommand. It is
+	// what a test asserts a command method's request construction against.
+	Request proto.Message
 }
 
 // value returns the first value of key, or "" when the key is absent. key is
@@ -97,6 +102,9 @@ type fakeServicer struct {
 	// failCount is how many leading attempts fail: 0 means none, N means the
 	// first N, fakeAlways means all of them.
 	failCount int
+
+	// coroutines is what QueryCoroutine answers.
+	coroutines []*pb.Coroutine
 
 	// calls is every call received, in arrival order.
 	calls []fakeCall
@@ -137,6 +145,11 @@ func fakeFailFirst(n int, code codes.Code) fakeOption {
 	}
 }
 
+// fakeWithCoroutines sets the coroutines QueryCoroutine answers with.
+func fakeWithCoroutines(coroutines ...*pb.Coroutine) fakeOption {
+	return func(s *fakeServicer) { s.coroutines = coroutines }
+}
+
 // newFakeServicer builds a servicer that succeeds with flag 0 unless the
 // options say otherwise.
 func newFakeServicer(opts ...fakeOption) *fakeServicer {
@@ -147,12 +160,12 @@ func newFakeServicer(opts ...fakeOption) *fakeServicer {
 	return s
 }
 
-// admit records the call and returns the error this attempt should fail with,
-// or nil when it should succeed.
-func (s *fakeServicer) admit(ctx context.Context, method string) error {
+// admit records the call together with its request and returns the error this
+// attempt should fail with, or nil when it should succeed.
+func (s *fakeServicer) admit(ctx context.Context, method string, request proto.Message) error {
 	s.mu.Lock()
 	incoming, _ := metadata.FromIncomingContext(ctx)
-	s.calls = append(s.calls, fakeCall{Method: method, Metadata: incoming.Copy()})
+	s.calls = append(s.calls, fakeCall{Method: method, Metadata: incoming.Copy(), Request: request})
 	attempt := len(s.calls)
 	failCount := s.failCount
 	failCode := s.failCode
@@ -165,8 +178,8 @@ func (s *fakeServicer) admit(ctx context.Context, method string) error {
 }
 
 // serviceCall is the body shared by every RPC returning a ServiceResponse.
-func (s *fakeServicer) serviceCall(ctx context.Context, method string) (*pb.ServiceResponse, error) {
-	if err := s.admit(ctx, method); err != nil {
+func (s *fakeServicer) serviceCall(ctx context.Context, method string, request proto.Message) (*pb.ServiceResponse, error) {
+	if err := s.admit(ctx, method, request); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
@@ -203,32 +216,56 @@ func (s *fakeServicer) lastCall(t *testing.T) fakeCall {
 
 // Child commands.
 
-func (s *fakeServicer) RunCommandInit(ctx context.Context, _ *pb.InitCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandInit")
+func (s *fakeServicer) RunCommandInit(ctx context.Context, req *pb.InitCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandInit", req)
 }
 
-func (s *fakeServicer) RunCommandComplete(ctx context.Context, _ *pb.CompleteCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandComplete")
+func (s *fakeServicer) RunCommandComplete(ctx context.Context, req *pb.CompleteCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandComplete", req)
 }
 
-func (s *fakeServicer) RunCommandAbort(ctx context.Context, _ *pb.AbortCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandAbort")
+func (s *fakeServicer) RunCommandAbort(ctx context.Context, req *pb.AbortCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandAbort", req)
 }
 
 // Control commands.
 
-func (s *fakeServicer) RunCommandRequeue(ctx context.Context, _ *pb.RequeueCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandRequeue")
+func (s *fakeServicer) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandRequeue", req)
 }
 
-func (s *fakeServicer) RunCommandSuspend(ctx context.Context, _ *pb.SuspendCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandSuspend")
+func (s *fakeServicer) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandSuspend", req)
+}
+
+func (s *fakeServicer) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandResume", req)
+}
+
+func (s *fakeServicer) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandRun", req)
+}
+
+func (s *fakeServicer) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandForce", req)
+}
+
+func (s *fakeServicer) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandFreeDep", req)
+}
+
+func (s *fakeServicer) RunCommandLoad(ctx context.Context, req *pb.LoadCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandLoad", req)
+}
+
+func (s *fakeServicer) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandBegin", req)
 }
 
 // Query commands.
 
-func (s *fakeServicer) RunRequestShow(ctx context.Context, _ *pb.ShowRequest) (*pb.ShowResponse, error) {
-	if err := s.admit(ctx, "RunRequestShow"); err != nil {
+func (s *fakeServicer) RunRequestShow(ctx context.Context, req *pb.ShowRequest) (*pb.ShowResponse, error) {
+	if err := s.admit(ctx, "RunRequestShow", req); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
@@ -236,11 +273,20 @@ func (s *fakeServicer) RunRequestShow(ctx context.Context, _ *pb.ShowRequest) (*
 	return &pb.ShowResponse{Output: s.message}, nil
 }
 
-func (s *fakeServicer) RunRequestPing(ctx context.Context, _ *pb.PingRequest) (*pb.PingResponse, error) {
-	if err := s.admit(ctx, "RunRequestPing"); err != nil {
+func (s *fakeServicer) RunRequestPing(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
+	if err := s.admit(ctx, "RunRequestPing", req); err != nil {
 		return nil, err
 	}
 	return &pb.PingResponse{}, nil
+}
+
+func (s *fakeServicer) QueryCoroutine(ctx context.Context, req *pb.CoroutineRequest) (*pb.CoroutineResponse, error) {
+	if err := s.admit(ctx, "QueryCoroutine", req); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return &pb.CoroutineResponse{Coroutines: s.coroutines}, nil
 }
 
 // fakeServer is a running in-process server together with a client connection
@@ -336,6 +382,60 @@ func (f *fakeServer) Stop() {
 		f.grpcServer.Stop()
 		_ = f.listener.Close()
 	})
+}
+
+// newTCPFakeServer starts a fakeServicer on a loopback TCP listener and
+// returns the port it is listening on together with the servicer.
+//
+// The bufconn server above is only reachable through the connection handed out
+// here, which the production TaklerServiceClient cannot use: its withConnection
+// always dials its own target. Exercising a command method end to end --
+// request construction included -- therefore needs a real socket, and a
+// loopback listener on an ephemeral port gives one without a port allocation
+// race or anything escaping the test machine.
+func newTCPFakeServer(t *testing.T, opts ...fakeOption) (string, *fakeServicer) {
+	t.Helper()
+
+	servicer := newFakeServicer(opts...)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen on a loopback ephemeral port: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterTaklerServerServer(grpcServer, servicer)
+
+	served := make(chan struct{})
+	go func() {
+		defer close(served)
+		_ = grpcServer.Serve(listener)
+	}()
+
+	t.Cleanup(func() {
+		grpcServer.Stop()
+		_ = listener.Close()
+		<-served
+	})
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("read the listener's address: %v", err)
+	}
+	return port, servicer
+}
+
+// newTCPClient returns a TaklerServiceClient pointed at a TCP fake server, in
+// an environment scrubbed of TLS and credential settings so the call goes out
+// unencrypted and unauthenticated regardless of the developer's shell.
+func newTCPClient(t *testing.T, opts ...fakeOption) (*TaklerServiceClient, *fakeServicer) {
+	t.Helper()
+
+	credUnsetEnv(t, EnvJobPassword)
+	credUnsetEnv(t, EnvSecretFile)
+	credUnsetEnv(t, TaklerTlsCaFile)
+
+	port, servicer := newTCPFakeServer(t, opts...)
+	return NewTaklerServiceClient("127.0.0.1", port, SecurityLevels{}), servicer
 }
 
 // TestFakeServerHarness is the smoke test of the harness above: it proves a

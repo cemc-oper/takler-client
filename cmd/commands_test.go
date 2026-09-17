@@ -72,11 +72,34 @@ func commandRunners() map[string]func() error {
 			c.force = true
 			return c.runCommand(nil, []string{"/flow1/task1"})
 		},
+		"force": func() error {
+			return newForceCommand().runCommand(nil, []string{"complete", "/flow1/task1"})
+		},
+		"free-dep": func() error {
+			return newFreeDepCommand().runCommand(nil, []string{"/flow1/task1"})
+		},
+		// load reads its flow file before dialling, so the runner hands it a
+		// real one: with a missing file the failure would be the file's, not
+		// the one the test sets up.
+		"load": func() error {
+			flowFile := filepath.Join(os.TempDir(), "takler_client_test_flow.json")
+			if err := os.WriteFile(flowFile, []byte("{}"), 0o600); err != nil {
+				return err
+			}
+			defer func() { _ = os.Remove(flowFile) }()
+			return newLoadCommand().runCommand(nil, []string{flowFile})
+		},
+		"begin": func() error {
+			return newBeginCommand().runCommand(nil, []string{"flow1"})
+		},
 		"show": func() error {
 			return newShowCommand().runCommand(nil, nil)
 		},
 		"ping": func() error {
 			return newPingCommand().runCommand(nil, nil)
+		},
+		"coroutine": func() error {
+			return newCoroutineCommand().runCommand(nil, nil)
 		},
 	}
 }
@@ -198,6 +221,56 @@ func TestShowAllTurnsOnEveryShowOption(t *testing.T) {
 	}
 }
 
+// The diagnostics line a control command prints before its call carries the
+// parameters the operator typed, so a failing command still says what it was
+// asked to do. These assert the argument split of the commands added in M3:
+// force takes its first argument as the state and the rest as paths, free-dep
+// defaults --dep-type to all, and begin with no argument addresses every flow
+// with the empty name the protocol reads as "all flows".
+func TestNewControlCommandsPrintTheirArguments(t *testing.T) {
+	cases := []struct {
+		name     string
+		run      func() error
+		contains []string
+	}{
+		{"force splits state from paths", func() error {
+			return newForceCommand().runCommand(nil, []string{"complete", "/flow1/task1", "/flow1/task2"})
+		}, []string{"force: complete", "/flow1/task1", "/flow1/task2"}},
+		{"free-dep defaults dep type to all", func() error {
+			return newFreeDepCommand().runCommand(nil, []string{"/flow1/task1"})
+		}, []string{"free-dep: all", "/flow1/task1"}},
+		{"begin without a flow name begins all flows", func() error {
+			return newBeginCommand().runCommand(nil, nil)
+		}, []string{"begin: \n"}},
+		{"begin with a flow name", func() error {
+			return newBeginCommand().runCommand(nil, []string{"flow1"})
+		}, []string{"begin: flow1"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv(common.TaklerTlsCaFile, filepath.Join(t.TempDir(), "absent-ca.crt"))
+			t.Setenv(TaklerHost, "test_host")
+			t.Setenv(TaklerPort, "4321")
+
+			var err error
+			output := captureStdout(t, func() { err = c.run() })
+
+			if err == nil {
+				t.Fatal("error = nil, want the unusable CA certificate error")
+			}
+			if !strings.HasPrefix(output, "test_host:4321 ") {
+				t.Errorf("output = %q, want it to start with the server the command talked to", output)
+			}
+			for _, fragment := range c.contains {
+				if !strings.Contains(output, fragment) {
+					t.Errorf("output = %q, want it to contain %q", output, fragment)
+				}
+			}
+		})
+	}
+}
+
 // getNodePath falls back from the --node-path option to TAKLER_NAME and then to
 // an empty string, which lets the server reject the request rather than the
 // client guessing a node.
@@ -223,48 +296,6 @@ func TestGetNodePath(t *testing.T) {
 
 		if got := getNodePath(""); got != "" {
 			t.Errorf("node path = %q, want empty", got)
-		}
-	})
-}
-
-// getHost and getPort are the deprecated single value resolutions, kept until
-// their callers are gone. They must agree with resolveServerTarget on the two
-// levels they do know about, or a caller that still uses them would reach a
-// different server than the rest of the client.
-func TestDeprecatedGetHostAndGetPort(t *testing.T) {
-	t.Run("option wins", func(t *testing.T) {
-		t.Setenv(TaklerHost, "env_host")
-		t.Setenv(TaklerPort, "1234")
-
-		if got, want := getHost("option_host"), "option_host"; got != want {
-			t.Errorf("host = %q, want %q", got, want)
-		}
-		if got, want := getPort("9999"), "9999"; got != want {
-			t.Errorf("port = %q, want %q", got, want)
-		}
-	})
-
-	t.Run("environment", func(t *testing.T) {
-		t.Setenv(TaklerHost, "env_host")
-		t.Setenv(TaklerPort, "1234")
-
-		if got, want := getHost(""), "env_host"; got != want {
-			t.Errorf("host = %q, want %q", got, want)
-		}
-		if got, want := getPort(""), "1234"; got != want {
-			t.Errorf("port = %q, want %q", got, want)
-		}
-	})
-
-	t.Run("defaults", func(t *testing.T) {
-		t.Setenv(TaklerHost, "")
-		t.Setenv(TaklerPort, "")
-
-		if got, want := getHost(""), DefaultHost; got != want {
-			t.Errorf("host = %q, want %q", got, want)
-		}
-		if got, want := getPort(""), DefaultPort; got != want {
-			t.Errorf("port = %q, want %q", got, want)
 		}
 	})
 }

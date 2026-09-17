@@ -121,3 +121,45 @@ func (mc *pingCommand) runCommand(cmd *cobra.Command, args []string) error {
 	_, err = client.RunQueryPing()
 	return err
 }
+
+/*
+********************************************
+
+	coroutine
+
+********************************************
+*/
+type coroutineCommand struct {
+	BaseCommand
+
+	host string
+	port string
+}
+
+func newCoroutineCommand() *coroutineCommand {
+	c := &coroutineCommand{}
+	coroutineCmd := &cobra.Command{
+		Use:   "coroutine",
+		Short: "[query] print current coroutine in server. for debug.",
+		Long:  "print the coroutines the server is running",
+		RunE:  c.runCommand,
+	}
+
+	coroutineCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	coroutineCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+
+	c.cmd = coroutineCmd
+	return c
+}
+
+func (mc *coroutineCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s:%s coroutine\n", client.Host, client.Port)
+
+	_, err = client.RunQueryCoroutine()
+	return err
+}

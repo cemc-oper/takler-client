@@ -49,7 +49,7 @@ type TaklerServerClient interface {
 	RunCommandMeter(ctx context.Context, in *MeterCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandRequeue(ctx context.Context, in *RequeueCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandSuspend(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandResume(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
+	RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
@@ -138,7 +138,7 @@ func (c *taklerServerClient) RunCommandSuspend(ctx context.Context, in *SuspendC
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandResume(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ServiceResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandResume_FullMethodName, in, out, cOpts...)
@@ -240,7 +240,7 @@ type TaklerServerServer interface {
 	RunCommandMeter(context.Context, *MeterCommand) (*ServiceResponse, error)
 	RunCommandRequeue(context.Context, *RequeueCommand) (*ServiceResponse, error)
 	RunCommandSuspend(context.Context, *SuspendCommand) (*ServiceResponse, error)
-	RunCommandResume(context.Context, *SuspendCommand) (*ServiceResponse, error)
+	RunCommandResume(context.Context, *ResumeCommand) (*ServiceResponse, error)
 	RunCommandRun(context.Context, *RunCommand) (*ServiceResponse, error)
 	RunCommandForce(context.Context, *ForceCommand) (*ServiceResponse, error)
 	RunCommandFreeDep(context.Context, *FreeDepCommand) (*ServiceResponse, error)
@@ -280,7 +280,7 @@ func (UnimplementedTaklerServerServer) RunCommandRequeue(context.Context, *Reque
 func (UnimplementedTaklerServerServer) RunCommandSuspend(context.Context, *SuspendCommand) (*ServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandSuspend not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandResume(context.Context, *SuspendCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandResume(context.Context, *ResumeCommand) (*ServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandResume not implemented")
 }
 func (UnimplementedTaklerServerServer) RunCommandRun(context.Context, *RunCommand) (*ServiceResponse, error) {
@@ -455,7 +455,7 @@ func _TaklerServer_RunCommandSuspend_Handler(srv interface{}, ctx context.Contex
 }
 
 func _TaklerServer_RunCommandResume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SuspendCommand)
+	in := new(ResumeCommand)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -467,7 +467,7 @@ func _TaklerServer_RunCommandResume_Handler(srv interface{}, ctx context.Context
 		FullMethod: TaklerServer_RunCommandResume_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaklerServerServer).RunCommandResume(ctx, req.(*SuspendCommand))
+		return srv.(TaklerServerServer).RunCommandResume(ctx, req.(*ResumeCommand))
 	}
 	return interceptor(ctx, in, info, handler)
 }

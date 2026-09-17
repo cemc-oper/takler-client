@@ -146,30 +146,6 @@ func resolveServerTarget(host string, port string) (serverTarget, error) {
 	return target, nil
 }
 
-// Deprecated: getHost is deprecated. Use getHostAndPort instead.
-func getHost(host string) string {
-	if len(host) > 0 {
-		return host
-	}
-	host = os.Getenv(TaklerHost)
-	if len(host) > 0 {
-		return host
-	}
-	return DefaultHost
-}
-
-// Deprecated: getPort is deprecated. Use getHostAndPort instead.
-func getPort(port string) string {
-	if len(port) > 0 {
-		return port
-	}
-	port = os.Getenv(TaklerPort)
-	if len(port) > 0 {
-		return port
-	}
-	return DefaultPort
-}
-
 func getNodePath(nodePath string) string {
 	if len(nodePath) > 0 {
 		return nodePath

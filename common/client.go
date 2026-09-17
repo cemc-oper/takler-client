@@ -45,16 +45,6 @@ func NewTaklerServiceClient(host string, port string, security SecurityLevels) *
 	}
 }
 
-// CreateTaklerServiceClient returns a client with no security levels supplied
-// by the caller, i.e. one whose TLS settings and credentials come from the
-// environment alone.
-//
-// Deprecated: use NewTaklerServiceClient, which carries the command line
-// options and the connect config's security section as well.
-func CreateTaklerServiceClient(host string, port string) *TaklerServiceClient {
-	return NewTaklerServiceClient(host, port, SecurityLevels{})
-}
-
 type TaklerServiceClient struct {
 	Host string
 	Port string

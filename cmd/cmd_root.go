@@ -39,10 +39,15 @@ func (b *commandsBuilder) addAll() *commandsBuilder {
 		newSuspendCommand(),
 		newResumeCommand(),
 		newRunCommand(),
+		newForceCommand(),
+		newFreeDepCommand(),
+		newLoadCommand(),
+		newBeginCommand(),
 
 		// query
 		newShowCommand(),
 		newPingCommand(),
+		newCoroutineCommand(),
 	)
 	return b
 }

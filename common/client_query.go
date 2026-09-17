@@ -63,3 +63,20 @@ func (c *TaklerServiceClient) RunQueryPing() (*pb.PingResponse, error) {
 	)
 	return response, nil
 }
+
+// RunQueryCoroutine prints the coroutines the server is running, one
+// "name<TAB>description" line each, exactly as the Python client's
+// run_query_coroutine does. It is a debugging view for the operator.
+func (c *TaklerServiceClient) RunQueryCoroutine() (*pb.CoroutineResponse, error) {
+	response, err := CallCommand(
+		c, "coroutine", KindQuery, &pb.CoroutineRequest{}, pb.TaklerServerClient.QueryCoroutine,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, coroutine := range response.GetCoroutines() {
+		fmt.Printf("%s\t%s\n", coroutine.GetName(), coroutine.GetDescription())
+	}
+	return response, nil
+}
