@@ -139,7 +139,7 @@ type ServiceResponse struct {
 	unknownFields protoimpl.UnknownFields
 
 	// 错误分类码（Error_Code）。0 表示成功，非 0 表示失败并标识错误分类。
-	// 取值表见 takler/server/protocol/error_code.py（ERROR_NAME_BY_CODE）。
+	// 取值表见 takler/protocol/error_code.py（ERROR_NAME_BY_CODE）。
 	// 只判断 flag != 0 的客户端无需改动。
 	Flag    int32  `protobuf:"varint,1,opt,name=flag,proto3" json:"flag,omitempty"`
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
