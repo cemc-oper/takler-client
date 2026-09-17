@@ -1,12 +1,20 @@
 syntax = "proto3";
 /*
+This file is the single source of truth of the wire protocol. Both client
+implementations mirror it and gate on drift in CI.
+
 Python
 
     python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. takler/server/protocol/takler.proto
 
 Golang
 
-    protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative .\takler_protocol\takler.proto
+    The Go stubs live in the takler-client repo and are regenerated there:
+
+        scripts/proto.sh sync
+
+    protoc comes from this repo's locked uv environment (grpcio-tools in the
+    dev dependency group), so no separate protoc installation is needed.
 */
 
 
@@ -15,6 +23,9 @@ option go_package = "github.com/cemc-oper/takler-client/takler_protocol";
 package takler_protocol;
 
 message ServiceResponse{
+  // 错误分类码（Error_Code）。0 表示成功，非 0 表示失败并标识错误分类。
+  // 取值表见 takler/server/protocol/error_code.py（ERROR_NAME_BY_CODE）。
+  // 只判断 flag != 0 的客户端无需改动。
   int32 flag = 1;
   string message = 2;
 }
@@ -98,6 +109,12 @@ message LoadCommand {
   bytes flow = 2;
 }
 
+message BeginCommand {
+  // 空串表示对 Bunch 中全部 flow 执行 begin。
+  string flow_name = 1;
+  bool force = 2;
+}
+
 //----------------------------------------
 // query command
 
@@ -156,6 +173,8 @@ service TaklerServer {
   rpc RunCommandFreeDep(FreeDepCommand) returns (ServiceResponse) {}
 
   rpc RunCommandLoad(LoadCommand) returns (ServiceResponse) {}
+
+  rpc RunCommandBegin(BeginCommand) returns (ServiceResponse) {}
 
 
   // query command

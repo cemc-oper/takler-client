@@ -57,3 +57,34 @@ jobs:
         name: coverage-profile
         path: coverage.out
         if-no-files-found: warn
+
+  proto-drift:
+
+    name: proto drift check
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    # takler 仓的 `src/takler/server/protocol/takler.proto` 是协议的唯一事实来源，
+    # 漂移检查需要拿到它：检出到 `takler-src/`，经 TAKLER_REPO 传给脚本。
+    - name: Check out the takler repo (proto source of truth)
+      uses: actions/checkout@v4
+      with:
+        repository: cemc-oper/takler
+        path: takler-src
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache-dependency-path: go.sum
+    # protoc 来自 takler 仓锁定的 uv 环境（dev 组的 grpcio-tools），脚本里以
+    # `uv run --project` 调用，因此这里只需装 uv 本身。
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.0.1
+      with:
+        enable-cache: true
+    # 两层校验：`takler_protocol/takler.proto` 与事实来源逐字节一致；生成代码重新
+    # 生成后 diff 为空。任一端 proto 落后都会让本 job 变红。
+    - name: Proto drift check
+      run: TAKLER_REPO="${{ github.workspace }}/takler-src" make proto-check

@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -33,7 +33,19 @@ cover:
 cover-check:
 	./scripts/check_coverage.sh
 
+# proto-sync copies takler.proto from the takler repo (the single source of
+# truth, TAKLER_REPO environment variable, default ../takler) and regenerates
+# the Go stubs. Run this after the proto changed on the takler side.
+proto-sync:
+	./scripts/proto.sh sync
+
+# proto-check is the drift gate: it fails when takler_protocol/takler.proto
+# differs from the takler repo's copy, or when the checked in stubs differ
+# from a fresh regeneration.
+proto-check:
+	./scripts/proto.sh check
+
 # check is what CI runs, and what to run locally before pushing. The CI workflow
 # invokes these same targets one per step, so that the failing step is visible in
 # the run summary while "make check" stays the single local entry point.
-check: vet fmt-check test cover-check
+check: vet fmt-check test cover-check proto-check
