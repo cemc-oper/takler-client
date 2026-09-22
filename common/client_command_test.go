@@ -34,7 +34,7 @@ func newUnreachableClient(t *testing.T) *TaklerServiceClient {
 	t.Setenv(EnvRetryWindow, "0")
 	t.Setenv(TaklerTlsCaFile, "")
 	t.Setenv(EnvSecretFile, "")
-	return NewTaklerServiceClient(unreachableHost, unreachablePort, SecurityLevels{})
+	return newTestClient(t, unreachableHost, unreachablePort, SecurityLevels{})
 }
 
 // assertUnreachable checks that a call against the closed port came back as the
@@ -160,7 +160,7 @@ func TestControlMethodSurfacesCredentialFailure(t *testing.T) {
 	t.Setenv(TaklerTlsCaFile, "")
 	t.Setenv(EnvSecretFile, missing)
 
-	client := NewTaklerServiceClient(unreachableHost, unreachablePort, SecurityLevels{})
+	client := newTestClient(t, unreachableHost, unreachablePort, SecurityLevels{})
 
 	_, err := client.RunCommandSuspend([]string{"/flow1"})
 	if err == nil {

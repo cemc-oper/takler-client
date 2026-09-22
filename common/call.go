@@ -1,20 +1,20 @@
-// The Go Call_Wrapper: the single path every RPC of this client takes.
+// The Go Call_Wrapper: the single path every call of this client takes.
 //
 // retry.go answers "whether and how long to wait", credentials.go answers "what
 // credentials does this call carry", exitcode.go answers "what does a failure
-// exit with". This file is the RPC plumbing that puts the three together and
-// runs the attempt loop, which is why it sits in its own file rather than in
-// retry.go: retry.go is deliberately free of RPC knowledge, and keeping it that
-// way is what lets its own tests drive the window bookkeeping with nothing but a
-// fake clock.
+// exit with". This file is the plumbing that puts the three together and hands
+// the attempt loop to RunWithRetry, the transport-neutral decision layer of
+// retry.go: what is gRPC specific here -- the metadata the credentials become
+// and the classifyGrpcError mapping -- is exactly what another transport
+// replaces, nothing more (M3 task 9).
 //
 // Everything a command method used to repeat -- a hardcoded per-call timeout, a
 // log.Fatalf on failure, no retry at all -- lives here once, so a command method
 // is left with building a request and reading a response (requirements 14.1,
 // 13.7).
 //
-// The attempt loop mirrors the Python client's ServiceClient._call in
-// takler/client/service_client.py, which is the reference implementation of the
+// The attempt loop mirrors the Python client's run_with_retry in
+// takler/client/retry.py, which is the reference implementation of the
 // cross-language contract. Any change to the classification, the ordering of the
 // checks or the outcome of an exhausted window must be applied there as well.
 //
@@ -23,32 +23,31 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"time"
 
-	pb "github.com/cemc-oper/takler-client/takler_protocol"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
-// CallCommand opens the connection, sends req through Call and closes the
-// connection again, returning whatever the server answered.
+// CallCommand opens the transport, sends req through Call and closes the
+// transport again, returning whatever the server answered.
 //
 // It is what a command method calls, and it is the reason a command method is
 // down to building a request and reading a response (requirement 14.1): the
-// connection lifetime lives in withConnection, the per-attempt timeout, the
+// connection lifetime lives in withTransport, the per-attempt timeout, the
 // retry window and the credential injection live in Call, and neither appears
 // at the call site.
 //
-// invoke is a method expression of the generated client interface, e.g.
-// pb.TaklerServerClient.RunCommandInit. Spelling it that way rather than as a
-// method value is what lets a call site name the RPC in one identifier: the
-// receiver is not known before the connection exists, so a method value would
-// have to be produced inside a closure, and that closure's signature would have
-// to be written out in full at every one of the eleven call sites. Both type
+// invoke is a method expression of the Transport interface, e.g.
+// Transport.RunCommandInit. Spelling it that way rather than as a method value
+// is what lets a call site name the command in one identifier: the receiver is
+// not known before the connection exists, so a method value would have to be
+// produced inside a closure, and that closure's signature would have to be
+// written out in full at every one of the sixteen call sites. The generated
+// pb.TaklerServerClient interface no longer appears here at all -- the
+// transport behind the interface is the gRPC one today and the HTTP one of M3
+// task 10 tomorrow, and no call site can tell the difference. Both type
 // parameters are inferred from the method expression together with req.
 //
 // The context is the process-wide background one: a command method has no
@@ -59,16 +58,16 @@ func CallCommand[Req any, Resp any](
 	name string,
 	kind CommandKind,
 	req Req,
-	invoke func(pb.TaklerServerClient, context.Context, Req, ...grpc.CallOption) (Resp, error),
+	invoke func(Transport, context.Context, Req) (Resp, error),
 ) (Resp, error) {
 	var response Resp
 
-	err := c.withConnection(func(client pb.TaklerServerClient) error {
+	err := c.withTransport(func(transport Transport) error {
 		var err error
 		response, err = Call(
 			c, context.Background(), name, kind, req,
-			func(ctx context.Context, request Req, opts ...grpc.CallOption) (Resp, error) {
-				return invoke(client, ctx, request, opts...)
+			func(ctx context.Context, request Req) (Resp, error) {
+				return invoke(transport, ctx, request)
 			},
 		)
 		return err
@@ -84,15 +83,14 @@ func CallCommand[Req any, Resp any](
 // Call invokes invoke with a per-attempt timeout, backoff retry, credential
 // injection and error to exit code mapping (requirement 14.1).
 //
-// The type parameters keep each RPC's concrete request and response types, so no
-// caller casts an interface{} back to what it already knew it had. invoke is
-// meant to be a generated stub method value, e.g. client.RunCommandInit, whose
-// signature the constraint is written for; both type parameters are inferred
-// from it.
+// The type parameters keep each command's concrete request and response types,
+// so no caller casts an interface{} back to what it already knew it had. invoke
+// is meant to be a Transport method bound to an open transport, e.g. produced
+// from Transport.RunCommandInit; both type parameters are inferred from it.
 //
 // c supplies the credentials (requirement 13.7) and the server address that
 // appears in diagnostics. It is not connected here: the connection belongs to
-// withConnection, and invoke is a method of the client bound to it, which keeps
+// withTransport, and invoke is a method of the transport it opened, which keeps
 // one connection per command rather than one per attempt.
 //
 // ctx is the caller's context. It bounds the whole logical call, retries
@@ -104,7 +102,7 @@ func CallCommand[Req any, Resp any](
 // default Retry_Window.
 //
 // The returned response is whatever the server answered, including a response
-// whose flag is non zero: that is a *successful* RPC carrying the server's
+// whose flag is non zero: that is a *successful* call carrying the server's
 // Error_Code, so it is neither retried nor turned into an error here
 // (requirement 14.8). Deciding what to do with the flag is the caller's job.
 //
@@ -120,7 +118,7 @@ func Call[Req any, Resp any](
 	name string,
 	kind CommandKind,
 	req Req,
-	invoke func(context.Context, Req, ...grpc.CallOption) (Resp, error),
+	invoke func(context.Context, Req) (Resp, error),
 ) (Resp, error) {
 	return callWith(c, ctx, name, kind, req, invoke, callSettings{})
 }
@@ -147,25 +145,17 @@ type callSettings struct {
 
 // callWith is Call with the retry policy and the diagnostics sink supplied.
 //
-// The loop's structure, and the order of its three decisions, is the contract
-// shared with Python's ServiceClient._call:
-//
-//  1. A non retryable status code returns immediately: the request itself is
-//     wrong, so spending the Retry_Window on it only delays the error
-//     (requirement 14.7).
-//  2. A retryable status code asks the policy for the next delay. No delay means
-//     the window is exhausted, which ends the call as unreachable (requirement
-//     14.5); a delay means one line of diagnostics and one wait before the next
-//     attempt (requirements 14.3, 14.6).
-//  3. Anything else -- a response, with any flag -- returns as is (requirement
-//     14.8).
+// The gRPC specific parts are exactly two: the credentials become gRPC
+// metadata on the outgoing context, and a failed attempt is classified by
+// classifyGrpcError. The attempt loop itself is RunWithRetry's, shared with
+// every future transport.
 func callWith[Req any, Resp any](
 	c *TaklerServiceClient,
 	ctx context.Context,
 	name string,
 	kind CommandKind,
 	req Req,
-	invoke func(context.Context, Req, ...grpc.CallOption) (Resp, error),
+	invoke func(context.Context, Req) (Resp, error),
 	settings callSettings,
 ) (Resp, error) {
 	var zero Resp
@@ -196,48 +186,13 @@ func callWith[Req any, Resp any](
 	}
 	callCtx := metadata.NewOutgoingContext(ctx, md)
 
-	address := c.getServerAddress()
-	started := policy.Now()
-
-	for attempt := 1; ; attempt++ {
-		response, err := callOnce(callCtx, policy.Timeout(), req, invoke)
-		if err == nil {
-			return response, nil
-		}
-
-		code := status.Code(err)
-		if !IsRetryableStatus(code) {
-			return zero, NewExitError(
-				ExitCodeForStatus(code),
-				fmt.Sprintf(
-					"%s on server %s failed with gRPC status %v: %s",
-					name, address, code, status.Convert(err).Message(),
-				),
-			)
-		}
-
-		elapsed := policy.Now().Sub(started)
-		delay, ok := policy.NextDelay(attempt, elapsed)
-		if !ok {
-			// The window is over, which includes the Retry_Window == 0 case:
-			// there the first failure already lands here, so exactly one attempt
-			// happened (requirement 14.13).
-			return zero, NewExitError(
-				ExitUnreachable,
-				fmt.Sprintf(
-					"server %s is unreachable after %d attempts, last gRPC status %v",
-					address, attempt, code,
-				),
-			)
-		}
-
-		fmt.Fprintf(
-			warn,
-			"retry %s to %s: elapsed=%.1fs, status=%v\n",
-			name, address, elapsed.Seconds(), code,
-		)
-		policy.Sleep(delay)
-	}
+	return RunWithRetry(
+		policy, warn, name, c.getServerAddress(),
+		func() (Resp, error) {
+			return callOnce(callCtx, policy.Timeout(), req, invoke)
+		},
+		classifyGrpcError,
+	)
 }
 
 // callOnce makes one attempt under its own deadline (requirement 14.2).
@@ -251,7 +206,7 @@ func callOnce[Req any, Resp any](
 	ctx context.Context,
 	timeout time.Duration,
 	req Req,
-	invoke func(context.Context, Req, ...grpc.CallOption) (Resp, error),
+	invoke func(context.Context, Req) (Resp, error),
 ) (Resp, error) {
 	attemptCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

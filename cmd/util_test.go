@@ -62,6 +62,38 @@ security:
 	if got, want := c.GetOperatorSecretFile(), "/etc/takler/secret"; got != want {
 		t.Errorf("operator secret file = %q, want %q", got, want)
 	}
+	if got := c.GetTransport(); got != "" {
+		t.Errorf("transport = %q, want empty", got)
+	}
+	if got := c.GetHttpPort(); got != "" {
+		t.Errorf("http port = %q, want empty", got)
+	}
+}
+
+// The transport field and the HTTP listener subsection of the server section
+// (M3 task 9) must parse; the client reads both.
+func TestLoadConnectConfigWithTransportAndHttpSection(t *testing.T) {
+	filePath := writeConnectConfig(t, `server:
+  address:
+    hostname: login_a06
+    port: "33083"
+  transport: http
+  http:
+    host: 0.0.0.0
+    port: "8083"
+`)
+
+	c, err := loadConnectConfig(filePath)
+	if err != nil {
+		t.Fatalf("load connect config: %v", err)
+	}
+
+	if got, want := c.GetTransport(), "http"; got != want {
+		t.Errorf("transport = %q, want %q", got, want)
+	}
+	if got, want := c.GetHttpPort(), "8083"; got != want {
+		t.Errorf("http port = %q, want %q", got, want)
+	}
 }
 
 // An M1 config file, which has no security section and may carry unknown
@@ -93,6 +125,12 @@ unknown_section:
 	if got := c.GetOperatorSecretFile(); got != "" {
 		t.Errorf("operator secret file = %q, want empty", got)
 	}
+	if got := c.GetTransport(); got != "" {
+		t.Errorf("transport = %q, want empty", got)
+	}
+	if got := c.GetHttpPort(); got != "" {
+		t.Errorf("http port = %q, want empty", got)
+	}
 }
 
 // The accessors are used on the result of loadConnectConfig, which is nil when
@@ -108,5 +146,11 @@ func TestConnectConfigAccessorsOnNil(t *testing.T) {
 	}
 	if got := c.GetOperatorSecretFile(); got != "" {
 		t.Errorf("operator secret file = %q, want empty", got)
+	}
+	if got := c.GetTransport(); got != "" {
+		t.Errorf("transport = %q, want empty", got)
+	}
+	if got := c.GetHttpPort(); got != "" {
+		t.Errorf("http port = %q, want empty", got)
 	}
 }

@@ -213,6 +213,148 @@ func TestResolveServerTargetPrecedence(t *testing.T) {
 	})
 }
 
+// The transport tier of the resolution: the connect config's server.transport
+// outranks TAKLER_TRANSPORT, gRPC is the default (M3 task 9). With the HTTP
+// transport selected and a server.http section present, the connect config
+// level's port is the section's port; the command's own --port still wins.
+func TestResolveServerTargetTransport(t *testing.T) {
+	t.Run("defaults to grpc", func(t *testing.T) {
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.transport != common.TransportGrpc {
+			t.Errorf("transport = %q, want %q", target.transport, common.TransportGrpc)
+		}
+	})
+
+	t.Run("environment selects http", func(t *testing.T) {
+		t.Setenv(common.EnvTransport, "http")
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.transport != common.TransportHttp {
+			t.Errorf("transport = %q, want %q", target.transport, common.TransportHttp)
+		}
+		// Without a connect config there is no http section to take the port
+		// from: the address chain is untouched.
+		if target.port != DefaultPort {
+			t.Errorf("port = %q, want the default %q", target.port, DefaultPort)
+		}
+	})
+
+	t.Run("connect config over environment", func(t *testing.T) {
+		t.Setenv(common.EnvTransport, "grpc")
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  transport: http
+`))
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.transport != common.TransportHttp {
+			t.Errorf("transport = %q, want %q from the connect config", target.transport, common.TransportHttp)
+		}
+	})
+
+	t.Run("http selection takes the http section's port", func(t *testing.T) {
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  transport: http
+  http:
+    port: "8083"
+`))
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.host != "config_host" || target.port != "8083" {
+			t.Errorf("target = %s:%s, want config_host:8083", target.host, target.port)
+		}
+	})
+
+	t.Run("http selection without an http section keeps the address port", func(t *testing.T) {
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  transport: http
+`))
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.port != "5678" {
+			t.Errorf("port = %q, want %q", target.port, "5678")
+		}
+	})
+
+	t.Run("grpc selection ignores the http section", func(t *testing.T) {
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  http:
+    port: "8083"
+`))
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.port != "5678" {
+			t.Errorf("port = %q, want %q", target.port, "5678")
+		}
+	})
+
+	t.Run("the port option wins over the http section", func(t *testing.T) {
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  transport: http
+  http:
+    port: "8083"
+`))
+
+		target, err := resolveServerTarget("", "9999")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.port != "9999" {
+			t.Errorf("port = %q, want %q", target.port, "9999")
+		}
+	})
+
+	t.Run("an invalid config name degrades to the environment", func(t *testing.T) {
+		t.Setenv(common.EnvTransport, "grpc")
+		t.Setenv(TaklerConnectFile, writeConnectConfig(t, `server:
+  address:
+    hostname: config_host
+    port: "5678"
+  transport: grpcc
+`))
+
+		target, err := resolveServerTarget("", "")
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if target.transport != common.TransportGrpc {
+			t.Errorf("transport = %q, want %q from the environment", target.transport, common.TransportGrpc)
+		}
+	})
+}
+
 // An unusable connect config is a configuration error of the request, reported
 // as an *ExitError rather than by ending the process (requirement 15.9).
 func TestResolveServerTargetWithUnusableConnectConfig(t *testing.T) {

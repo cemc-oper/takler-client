@@ -388,7 +388,7 @@ func (f *fakeServer) Stop() {
 // returns the port it is listening on together with the servicer.
 //
 // The bufconn server above is only reachable through the connection handed out
-// here, which the production TaklerServiceClient cannot use: its withConnection
+// here, which the production TaklerServiceClient cannot use: its withTransport
 // always dials its own target. Exercising a command method end to end --
 // request construction included -- therefore needs a real socket, and a
 // loopback listener on an ephemeral port gives one without a port allocation
@@ -435,7 +435,18 @@ func newTCPClient(t *testing.T, opts ...fakeOption) (*TaklerServiceClient, *fake
 	credUnsetEnv(t, TaklerTlsCaFile)
 
 	port, servicer := newTCPFakeServer(t, opts...)
-	return NewTaklerServiceClient("127.0.0.1", port, SecurityLevels{}), servicer
+	return newTestClient(t, "127.0.0.1", port, SecurityLevels{}), servicer
+}
+
+// grpcRPC adapts a generated stub method value, whose signature carries the
+// variadic gRPC call options, to the invoke shape Call takes, so a Call test
+// can drive the real retry loop through a stub bound to the in-process server.
+func grpcRPC[Req any, Resp any](
+	method func(context.Context, Req, ...grpc.CallOption) (Resp, error),
+) func(context.Context, Req) (Resp, error) {
+	return func(ctx context.Context, req Req) (Resp, error) {
+		return method(ctx, req)
+	}
 }
 
 // TestFakeServerHarness is the smoke test of the harness above: it proves a

@@ -33,7 +33,7 @@ func (c *TaklerServiceClient) RunQueryShow(
 		ShowLimit:     showLimit,
 		ShowEvent:     showEvent,
 		ShowMeter:     showMeter,
-	}, pb.TaklerServerClient.RunRequestShow)
+	}, Transport.RunRequestShow)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *TaklerServiceClient) RunQueryPing() (*pb.PingResponse, error) {
 	startTime := time.Now()
 
 	response, err := CallCommand(
-		c, "ping", KindQuery, &pb.PingRequest{}, pb.TaklerServerClient.RunRequestPing,
+		c, "ping", KindQuery, &pb.PingRequest{}, Transport.RunRequestPing,
 	)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (c *TaklerServiceClient) RunQueryPing() (*pb.PingResponse, error) {
 // run_query_coroutine does. It is a debugging view for the operator.
 func (c *TaklerServiceClient) RunQueryCoroutine() (*pb.CoroutineResponse, error) {
 	response, err := CallCommand(
-		c, "coroutine", KindQuery, &pb.CoroutineRequest{}, pb.TaklerServerClient.QueryCoroutine,
+		c, "coroutine", KindQuery, &pb.CoroutineRequest{}, Transport.QueryCoroutine,
 	)
 	if err != nil {
 		return nil, err

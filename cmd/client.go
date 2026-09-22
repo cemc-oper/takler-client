@@ -4,7 +4,7 @@
 // A command implementation is a RunE that resolves its own options, calls one
 // common method and returns. Everything else -- where the address comes from,
 // which security levels the client carries, how a response's Error_Code becomes
-// output or an exit code -- is here, once, so the eleven commands cannot drift
+// output or an exit code -- is here, once, so the sixteen commands cannot drift
 // apart on any of it.
 //
 // Nothing in this file ends the process: a failure is an *ExitError returned up
@@ -34,8 +34,8 @@ func noTaklerIsSet() bool {
 }
 
 // newClient returns the client of the server a command talks to, with the
-// address and the security levels resolved (requirements 13.4, 13.5, 13.6,
-// 13.11).
+// address, the transport and the security levels resolved (requirements 13.4,
+// 13.5, 13.6, 13.11).
 //
 // host and port are the command's own --host / --port options, which win over
 // every other level; an empty string means the option was not given.
@@ -50,7 +50,7 @@ func newClient(host string, port string) (*common.TaklerServiceClient, error) {
 	}
 
 	levels := common.SecurityLevels(newSecurityLevels(globalFlags, target.config))
-	return common.NewTaklerServiceClient(target.host, target.port, levels), nil
+	return common.NewTaklerServiceClient(target.host, target.port, target.transport, levels)
 }
 
 // reportCommandResponse turns the response of a command RPC into this process's

@@ -27,7 +27,7 @@ func (c *TaklerServiceClient) RunCommandInit(nodePath string, taskId string) (*p
 			NodePath: nodePath,
 		},
 		TaskId: taskId,
-	}, pb.TaklerServerClient.RunCommandInit)
+	}, Transport.RunCommandInit)
 }
 
 // RunCommandComplete reports that the task at nodePath finished successfully.
@@ -36,7 +36,7 @@ func (c *TaklerServiceClient) RunCommandComplete(nodePath string) (*pb.ServiceRe
 		ChildOptions: &pb.ChildCommandOptions{
 			NodePath: nodePath,
 		},
-	}, pb.TaklerServerClient.RunCommandComplete)
+	}, Transport.RunCommandComplete)
 }
 
 // RunCommandAbort reports that the task at nodePath failed, with reason as the
@@ -47,7 +47,7 @@ func (c *TaklerServiceClient) RunCommandAbort(nodePath string, reason string) (*
 			NodePath: nodePath,
 		},
 		Reason: reason,
-	}, pb.TaklerServerClient.RunCommandAbort)
+	}, Transport.RunCommandAbort)
 }
 
 // RunCommandEvent sets the event eventName of the task at nodePath.
@@ -57,7 +57,7 @@ func (c *TaklerServiceClient) RunCommandEvent(nodePath string, eventName string)
 			NodePath: nodePath,
 		},
 		EventName: eventName,
-	}, pb.TaklerServerClient.RunCommandEvent)
+	}, Transport.RunCommandEvent)
 }
 
 // RunCommandMeter sets the meter meterName of the task at nodePath to
@@ -69,5 +69,5 @@ func (c *TaklerServiceClient) RunCommandMeter(nodePath string, meterName string,
 		},
 		MeterName:  meterName,
 		MeterValue: meterValue,
-	}, pb.TaklerServerClient.RunCommandMeter)
+	}, Transport.RunCommandMeter)
 }

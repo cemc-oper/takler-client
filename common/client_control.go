@@ -24,21 +24,21 @@ import (
 func (c *TaklerServiceClient) RunCommandRequeue(nodePaths []string) (*pb.ServiceResponse, error) {
 	return CallCommand(c, "requeue", KindControl, &pb.RequeueCommand{
 		NodePath: nodePaths,
-	}, pb.TaklerServerClient.RunCommandRequeue)
+	}, Transport.RunCommandRequeue)
 }
 
 // RunCommandSuspend suspends every node in nodePaths.
 func (c *TaklerServiceClient) RunCommandSuspend(nodePaths []string) (*pb.ServiceResponse, error) {
 	return CallCommand(c, "suspend", KindControl, &pb.SuspendCommand{
 		NodePath: nodePaths,
-	}, pb.TaklerServerClient.RunCommandSuspend)
+	}, Transport.RunCommandSuspend)
 }
 
 // RunCommandResume resumes every node in nodePaths.
 func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) (*pb.ServiceResponse, error) {
 	return CallCommand(c, "resume", KindControl, &pb.ResumeCommand{
 		NodePath: nodePaths,
-	}, pb.TaklerServerClient.RunCommandResume)
+	}, Transport.RunCommandResume)
 }
 
 // RunCommandRun runs every node in nodePaths, ignoring their dependencies when
@@ -47,7 +47,7 @@ func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) (*pb
 	return CallCommand(c, "run", KindControl, &pb.RunCommand{
 		NodePath: nodePaths,
 		Force:    force,
-	}, pb.TaklerServerClient.RunCommandRun)
+	}, Transport.RunCommandRun)
 }
 
 // RunCommandForce sets every node in nodePaths to the state named state,
@@ -76,7 +76,7 @@ func (c *TaklerServiceClient) RunCommandForce(nodePaths []string, state string, 
 		State:     pb.ForceCommand_ForceState(forceState),
 		Recursive: recursive,
 		Path:      nodePaths,
-	}, pb.TaklerServerClient.RunCommandForce)
+	}, Transport.RunCommandForce)
 }
 
 // RunCommandFreeDep frees the dependencies of class depType on every node in
@@ -100,7 +100,7 @@ func (c *TaklerServiceClient) RunCommandFreeDep(nodePaths []string, depType stri
 	return CallCommand(c, "free-dep", KindControl, &pb.FreeDepCommand{
 		DepType: pb.FreeDepCommand_DepType(depTypeValue),
 		Path:    nodePaths,
-	}, pb.TaklerServerClient.RunCommandFreeDep)
+	}, Transport.RunCommandFreeDep)
 }
 
 // RunCommandLoad loads the flow definition in flowFilePath to the server.
@@ -123,7 +123,7 @@ func (c *TaklerServiceClient) RunCommandLoad(flowType string, flowFilePath strin
 	return CallCommand(c, "load", KindControl, &pb.LoadCommand{
 		FlowType: flowType,
 		Flow:     flow,
-	}, pb.TaklerServerClient.RunCommandLoad)
+	}, Transport.RunCommandLoad)
 }
 
 // RunCommandBegin begins the flow named flowName, or every flow when flowName
@@ -133,5 +133,5 @@ func (c *TaklerServiceClient) RunCommandBegin(flowName string, force bool) (*pb.
 	return CallCommand(c, "begin", KindControl, &pb.BeginCommand{
 		FlowName: flowName,
 		Force:    force,
-	}, pb.TaklerServerClient.RunCommandBegin)
+	}, Transport.RunCommandBegin)
 }

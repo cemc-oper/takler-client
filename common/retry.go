@@ -9,7 +9,10 @@
 //   - the gRPC status code classification (RetryableStatusCodes),
 //   - the backoff schedule (backoffSeconds),
 //   - the TAKLER_TIMEOUT resolution (resolveRetryWindow),
-//   - and the window bookkeeping (RetryPolicy).
+//   - the window bookkeeping (RetryPolicy),
+//   - and the transport-neutral failure classification and attempt loop
+//     (FailureVerdict, RunWithRetry) every transport's Call_Wrapper runs, so
+//     the retry semantics cannot drift between transports (M3 task 9).
 //
 // Every constant and every classification mirrors the Python client's
 // takler/client/retry.py, which is the reference implementation of the
@@ -293,4 +296,112 @@ func (p *RetryPolicy) NextDelay(attempt int, elapsed time.Duration) (delay time.
 		return remaining, true
 	}
 	return backoff, true
+}
+
+// FailureVerdict is the transport-neutral classification of one failed
+// attempt: the decision layer between "the wire failed" and "the Call_Wrapper
+// acts" (M3 task 9).
+//
+// Each transport maps its own wire failures to a verdict -- gRPC status codes
+// in grpc_transport.go's classifyGrpcError, HTTP status codes and httpx style
+// transport errors in the HTTP transport of task 10 -- and RunWithRetry below
+// is the single loop that acts on the verdict. Splitting the classification
+// from the loop is what keeps the Retry_Window, the backoff, the exit codes
+// and the message shapes identical across transports by construction, rather
+// than by two implementations carefully kept in sync.
+//
+// It mirrors FailureVerdict in the Python client's takler/client/retry.py.
+type FailureVerdict struct {
+	// Retryable reports whether the failure is worth spending Retry_Window
+	// time on. A non-retryable failure ends the call immediately with
+	// ExitCode: the request itself is wrong, so retrying only delays the
+	// error (requirement 14.7).
+	Retryable bool
+
+	// ExitCode is the process exit code of a non-retryable failure
+	// (requirement 14.7). Meaningless when Retryable is true.
+	ExitCode int
+
+	// Name is the failure as it appears in the error message, e.g.
+	// "gRPC status UNAVAILABLE".
+	Name string
+
+	// LogField is the failure as it appears in the per-retry diagnostics
+	// line, e.g. "status=UNAVAILABLE".
+	LogField string
+
+	// Details is the server's own explanation, appended to the error message
+	// of a non-retryable failure.
+	Details string
+}
+
+// RunWithRetry runs attempt under the Retry_Window policy, classifying every
+// failure with classify (requirements 14.1, 14.3, 14.5, 14.6, 14.7, 14.8,
+// 14.13).
+//
+// The loop's structure, and the order of its three decisions, is the contract
+// shared with the Python client's run_with_retry in takler/client/retry.py:
+//
+//  1. A non-retryable verdict returns immediately as an *ExitError carrying
+//     the verdict's exit code: the request itself is wrong, so spending the
+//     Retry_Window on it only delays the error (requirement 14.7).
+//  2. A retryable verdict asks the policy for the next delay. No delay means
+//     the window is exhausted, which ends the call as unreachable (requirement
+//     14.5); a delay means one line of diagnostics and one wait before the
+//     next attempt (requirements 14.3, 14.6).
+//  3. Anything else -- a response, with any flag -- returns as is
+//     (requirement 14.8).
+//
+// address is the server address as it appears in the diagnostics, and warn is
+// the sink of the per-retry line. Neither is the loop's to know the origin of.
+func RunWithRetry[Resp any](
+	policy *RetryPolicy,
+	warn io.Writer,
+	name string,
+	address string,
+	attempt func() (Resp, error),
+	classify func(error) FailureVerdict,
+) (Resp, error) {
+	var zero Resp
+
+	started := policy.Now()
+	for attemptNumber := 1; ; attemptNumber++ {
+		response, err := attempt()
+		if err == nil {
+			return response, nil
+		}
+
+		verdict := classify(err)
+		if !verdict.Retryable {
+			return zero, NewExitError(
+				verdict.ExitCode,
+				fmt.Sprintf(
+					"%s on server %s failed with %s: %s",
+					name, address, verdict.Name, verdict.Details,
+				),
+			)
+		}
+
+		elapsed := policy.Now().Sub(started)
+		delay, ok := policy.NextDelay(attemptNumber, elapsed)
+		if !ok {
+			// The window is over, which includes the Retry_Window == 0 case:
+			// there the first failure already lands here, so exactly one attempt
+			// happened (requirement 14.13).
+			return zero, NewExitError(
+				ExitUnreachable,
+				fmt.Sprintf(
+					"server %s is unreachable after %d attempts, last %s",
+					address, attemptNumber, verdict.Name,
+				),
+			)
+		}
+
+		fmt.Fprintf(
+			warn,
+			"retry %s to %s: elapsed=%.1fs, %s\n",
+			name, address, elapsed.Seconds(), verdict.LogField,
+		)
+		policy.Sleep(delay)
+	}
 }

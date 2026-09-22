@@ -619,7 +619,13 @@ const (
 // server address for diagnostics and the Credentials of the call, and nothing
 // else.
 func retryCallClient() *TaklerServiceClient {
-	return NewTaklerServiceClient(retryCallHost, retryCallPort, SecurityLevels{})
+	// The gRPC transport never fails to construct, so the error is
+	// unreachable here.
+	client, err := NewTaklerServiceClient(retryCallHost, retryCallPort, TransportGrpc, SecurityLevels{})
+	if err != nil {
+		panic(err)
+	}
+	return client
 }
 
 // retryRequireExitError asserts that err is an *ExitError carrying wantCode and
@@ -692,7 +698,7 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 		"complete",
 		KindChild,
 		&pb.CompleteCommand{ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"}},
-		server.Client.RunCommandComplete,
+		grpcRPC(server.Client.RunCommandComplete),
 		callSettings{policy: retryPolicyWithClock(window, clock), warn: &warn},
 	)
 	wallElapsed := time.Since(wallStart)
@@ -778,7 +784,7 @@ func TestCallRetriesThenSucceeds(t *testing.T) {
 			ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
 			TaskId:       "job-1",
 		},
-		server.Client.RunCommandInit,
+		grpcRPC(server.Client.RunCommandInit),
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	if err != nil {
@@ -847,7 +853,7 @@ func TestCallDoesNotRetryNonRetryableStatus(t *testing.T) {
 				"requeue",
 				KindControl,
 				&pb.RequeueCommand{},
-				server.Client.RunCommandRequeue,
+				grpcRPC(server.Client.RunCommandRequeue),
 				callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 			)
 			if response != nil {
@@ -886,7 +892,7 @@ func TestCallZeroWindowSingleAttempt(t *testing.T) {
 		"ping",
 		KindQuery,
 		&pb.PingRequest{},
-		server.Client.RunRequestPing,
+		grpcRPC(server.Client.RunRequestPing),
 		callSettings{policy: retryPolicyWithClock(0, clock), warn: &warn},
 	)
 	exitErr := retryRequireExitError(t, err, ExitUnreachable)
@@ -928,7 +934,7 @@ func TestCallReturnsNonZeroFlagWithoutRetrying(t *testing.T) {
 		"suspend",
 		KindControl,
 		&pb.SuspendCommand{},
-		server.Client.RunCommandSuspend,
+		grpcRPC(server.Client.RunCommandSuspend),
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	if err != nil {
@@ -975,7 +981,7 @@ func TestCallInjectsCredentialMetadata(t *testing.T) {
 			"abort",
 			KindChild,
 			&pb.AbortCommand{ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"}},
-			server.Client.RunCommandAbort,
+			grpcRPC(server.Client.RunCommandAbort),
 			callSettings{policy: retryPolicyWithClock(60*time.Second, clock), warn: &warn},
 		)
 		if err != nil {
@@ -1007,7 +1013,7 @@ func TestCallInjectsCredentialMetadata(t *testing.T) {
 			"show",
 			KindQuery,
 			&pb.ShowRequest{},
-			server.Client.RunRequestShow,
+			grpcRPC(server.Client.RunRequestShow),
 			callSettings{policy: retryPolicyWithClock(60*time.Second, clock), warn: &warn},
 		)
 		if err != nil {
@@ -1052,7 +1058,7 @@ func TestCallRejectsUnreadableSecretFileBeforeAnyAttempt(t *testing.T) {
 		"requeue",
 		KindControl,
 		&pb.RequeueCommand{},
-		server.Client.RunCommandRequeue,
+		grpcRPC(server.Client.RunCommandRequeue),
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	exitErr := retryRequireExitError(t, err, ExitRequestError)
@@ -1088,7 +1094,7 @@ func TestCallUsesProcessRetryWindow(t *testing.T) {
 			"ping",
 			KindQuery,
 			&pb.PingRequest{},
-			server.Client.RunRequestPing,
+			grpcRPC(server.Client.RunRequestPing),
 		)
 		exitErr := retryRequireExitError(t, err, ExitUnreachable)
 		retryAssertMessageContains(
@@ -1111,7 +1117,7 @@ func TestCallUsesProcessRetryWindow(t *testing.T) {
 			"show",
 			KindQuery,
 			&pb.ShowRequest{},
-			server.Client.RunRequestShow,
+			grpcRPC(server.Client.RunRequestShow),
 		)
 		if err != nil {
 			t.Fatalf("Call: %v", err)

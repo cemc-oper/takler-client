@@ -25,6 +25,23 @@ type Address struct {
 
 type Server struct {
 	Address Address `yaml:"address"`
+
+	// Transport selects which client transport dials this server, "grpc" or
+	// "http" (M3 task 9). The server itself ignores the field.
+	Transport string `yaml:"transport"`
+
+	// Http is the optional HTTP listener subsection; nil when the section is
+	// absent. Only the port matters to the client: with the HTTP transport
+	// selected it replaces Address.Port at the connect config precedence
+	// level, exactly as the Python client's get_host_and_prot does.
+	Http *Http `yaml:"http"`
+}
+
+// Http holds the subset of the connect config's server.http section which the
+// client needs. The bind host and the TLS certificate pair are server side
+// only and are deliberately not declared here.
+type Http struct {
+	Port string `yaml:"port"`
 }
 
 // Security holds the subset of the connect config's security section which the
@@ -68,6 +85,24 @@ func (c *ConnectConfig) GetOperatorSecretFile() string {
 	return c.Security.OperatorSecretFile
 }
 
+// GetTransport returns the configured client transport name,
+// or an empty string when it is not configured.
+func (c *ConnectConfig) GetTransport() string {
+	if c == nil {
+		return ""
+	}
+	return c.Server.Transport
+}
+
+// GetHttpPort returns the configured HTTP listener port,
+// or an empty string when the server.http section is absent.
+func (c *ConnectConfig) GetHttpPort() string {
+	if c == nil || c.Server.Http == nil {
+		return ""
+	}
+	return c.Server.Http.Port
+}
+
 // loadConnectConfig parses the connect config file. Unknown sections, such as
 // the server side only checkpoint section, are ignored rather than rejected:
 // yaml.Unmarshal does not enable KnownFields.
@@ -86,8 +121,8 @@ func loadConnectConfig(filePath string) (*ConnectConfig, error) {
 	return c, nil
 }
 
-// serverTarget is the resolved address of the server, together with the connect
-// config it was resolved from.
+// serverTarget is the resolved address of the server, together with the
+// transport to reach it over and the connect config it was resolved from.
 //
 // The config is carried along because it is also the last precedence level of
 // the TLS and credential settings (requirement 13.6): loading it once and
@@ -97,21 +132,34 @@ type serverTarget struct {
 	host string
 	port string
 
+	// transport is the resolved transport name, one of common.TransportGrpc /
+	// common.TransportHttp (M3 task 9).
+	transport string
+
 	// config is the parsed connect config, or nil when TAKLER_CONNECT_FILE is
 	// not set. The ConnectConfig accessors tolerate a nil receiver.
 	config *ConnectConfig
 }
 
-// resolveServerTarget resolves the server address from, in increasing order of
-// precedence: the defaults, the TAKLER_HOST / TAKLER_PORT environment
-// variables, the connect config, and the command's own --host / --port options.
+// resolveServerTarget resolves the server address and the transport from, in
+// increasing order of precedence: the defaults, the TAKLER_HOST / TAKLER_PORT
+// / TAKLER_TRANSPORT environment variables, the connect config, and the
+// command's own --host / --port options.
+//
+// The transport tier mirrors the address chain's own ordering -- the connect
+// config's server.transport outranks TAKLER_TRANSPORT, gRPC is the default --
+// and an unrecognized name degrades to the next source with one line of
+// diagnostics rather than failing (common.ResolveTransport). With the HTTP
+// transport selected and a server.http section present, the connect config
+// level's port is the section's port instead of address.port, as the Python
+// client's get_host_and_prot does; the command's own --port still wins.
 //
 // An unreadable or unparseable connect config returns an *ExitError with
 // ExitRequestError rather than ending the process: it is a configuration error
 // of the request, and the exit code is the cmd layer's to decide, in one place
 // (requirement 15.9).
 func resolveServerTarget(host string, port string) (serverTarget, error) {
-	target := serverTarget{host: DefaultHost, port: DefaultPort}
+	target := serverTarget{host: DefaultHost, port: DefaultPort, transport: common.DefaultTransport}
 
 	envHost := os.Getenv(TaklerHost)
 	if len(envHost) > 0 {
@@ -134,6 +182,13 @@ func resolveServerTarget(host string, port string) (serverTarget, error) {
 		target.config = connectConfig
 		target.host = connectConfig.Server.Address.Hostname
 		target.port = connectConfig.Server.Address.Port
+	}
+
+	target.transport = common.ResolveTransport(target.config.GetTransport(), os.LookupEnv, os.Stderr)
+	if target.config != nil && target.transport == common.TransportHttp {
+		if httpPort := target.config.GetHttpPort(); httpPort != "" {
+			target.port = httpPort
+		}
 	}
 
 	if len(host) > 0 {

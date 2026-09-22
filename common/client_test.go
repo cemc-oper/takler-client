@@ -1,8 +1,9 @@
-// Tests of the connection construction (requirements 13.1, 13.2, 13.3).
+// Tests of the client construction and the transport lifetime.
 //
-// None of these dials a server: grpc.NewClient does not connect eagerly, so
-// everything this file asserts -- the target spelling, the credential failure
-// path, the connect / close pairing -- is observable without a listener.
+// The client is the command surface: it carries the address for diagnostics,
+// the Credentials of every call, and the Transport the calls travel over. The
+// wire specifics of the gRPC transport -- the target spelling, the credential
+// failure path of Open -- have their own tests in grpc_transport_test.go.
 package common
 
 import (
@@ -10,131 +11,121 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
 
-// The target must keep the passthrough scheme the replaced grpc.Dial defaulted
-// to, so that the address is resolved by the dialer instead of by gRPC's dns
-// resolver, which rejects host names such as an HPC login node's login_a06.
-func TestClientTargetKeepsPassthroughScheme(t *testing.T) {
-	client := NewTaklerServiceClient("login_a06", "33083", SecurityLevels{})
+// newTestClient is the test front of NewTaklerServiceClient: gRPC, and a
+// construction error fails the test.
+func newTestClient(t *testing.T, host string, port string, security SecurityLevels) *TaklerServiceClient {
+	t.Helper()
 
-	if got, want := client.getServerAddress(), "login_a06:33083"; got != want {
-		t.Errorf("server address = %q, want %q", got, want)
-	}
-	if got, want := client.getTarget(), "passthrough:///login_a06:33083"; got != want {
-		t.Errorf("target = %q, want %q", got, want)
-	}
-}
-
-// Without a CA certificate the connection is unencrypted and is created without
-// error, which is what keeps an M1 deployment working (requirement 13.3). The
-// connection is created lazily, so this establishes nothing and needs no
-// server.
-func TestConnectWithoutCaCertificateSucceeds(t *testing.T) {
-	t.Setenv(TaklerTlsCaFile, "")
-
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
-
-	generated, err := client.connect()
+	client, err := NewTaklerServiceClient(host, port, TransportGrpc, security)
 	if err != nil {
-		t.Fatalf("connect: %v", err)
+		t.Fatalf("build a test client: %v", err)
 	}
-	defer client.closeConnection()
-
-	if generated == nil {
-		t.Error("connect returned no client")
-	}
-	if client.conn == nil {
-		t.Error("connect left no connection on the client")
-	}
+	return client
 }
 
-// An unreadable CA certificate file is a configuration error of the request, so
-// connect returns BuildTransportCredentials' *ExitError rather than dying, and
-// no connection is left behind (requirements 13.12, 15.9).
-func TestConnectWithUnreadableCaCertificateReturnsExitError(t *testing.T) {
-	missing := filepath.Join(t.TempDir(), "absent-ca.crt")
-
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{
-		TLSFlags: TLSSettings{CaFile: missing},
+// The constructor carries the resolved transport name into the transport it
+// builds: empty and "grpc" build the gRPC transport, "http" names its own
+// unavailability instead of silently dialing gRPC, and a garbage name --
+// which ResolveTransport would have degraded before it got here -- is
+// rejected as the programming error it is.
+func TestNewClientSelectsTheTransport(t *testing.T) {
+	t.Run("empty name and grpc build the gRPC transport", func(t *testing.T) {
+		for _, name := range []string{"", TransportGrpc} {
+			client, err := NewTaklerServiceClient("localhost", "33083", name, SecurityLevels{})
+			if err != nil {
+				t.Fatalf("transport %q: %v", name, err)
+			}
+			if _, ok := client.transport.(*GrpcTransport); !ok {
+				t.Errorf("transport %q built %T, want *GrpcTransport", name, client.transport)
+			}
+		}
 	})
 
-	generated, err := client.connect()
-	if err == nil {
-		client.closeConnection()
-		t.Fatal("connect succeeded, want a CA certificate failure")
-	}
-	if generated != nil {
-		t.Error("connect returned a client together with the error")
-	}
-	if client.conn != nil {
-		t.Error("connect left a connection behind after failing")
-	}
+	t.Run("http is a clear error until its implementation lands", func(t *testing.T) {
+		_, err := NewTaklerServiceClient("localhost", "33083", TransportHttp, SecurityLevels{})
 
-	var exitErr *ExitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("error is %T, want *ExitError", err)
-	}
-	if exitErr.Code != ExitRequestError {
-		t.Errorf("exit code = %d, want %d", exitErr.Code, ExitRequestError)
-	}
-	if !strings.Contains(exitErr.Message, missing) {
-		t.Errorf("message %q does not name the file %q", exitErr.Message, missing)
-	}
+		var exitErr *ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("error is %v (%T), want *ExitError", err, err)
+		}
+		if exitErr.Code != ExitRequestError {
+			t.Errorf("exit code = %d, want %d", exitErr.Code, ExitRequestError)
+		}
+		if !strings.Contains(exitErr.Message, "HTTP") {
+			t.Errorf("message %q does not name the HTTP transport", exitErr.Message)
+		}
+	})
+
+	t.Run("an unknown name is rejected", func(t *testing.T) {
+		_, err := NewTaklerServiceClient("localhost", "33083", "carrier-pigeon", SecurityLevels{})
+
+		var exitErr *ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("error is %v (%T), want *ExitError", err, err)
+		}
+		if exitErr.Code != ExitRequestError {
+			t.Errorf("exit code = %d, want %d", exitErr.Code, ExitRequestError)
+		}
+		if !strings.Contains(exitErr.Message, "carrier-pigeon") {
+			t.Errorf("message %q does not name the offending value", exitErr.Message)
+		}
+	})
 }
 
-// withConnection runs the body with a usable client and releases the connection
-// afterwards, which is the boilerplate every command method now shares.
-func TestWithConnectionClosesAfterTheBody(t *testing.T) {
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
+// withTransport opens the transport, runs the body with it, and closes the
+// transport afterwards, which is the boilerplate every command method now
+// shares.
+func TestWithTransportClosesAfterTheBody(t *testing.T) {
+	client := newTestClient(t, "localhost", "33083", SecurityLevels{})
+	grpcTransport := client.transport.(*GrpcTransport)
 
 	called := 0
-	err := client.withConnection(func(generated pb.TaklerServerClient) error {
+	err := client.withTransport(func(transport Transport) error {
 		called++
-		if generated == nil {
-			t.Error("withConnection passed no client to the body")
+		if transport == nil {
+			t.Error("withTransport passed no transport to the body")
 		}
-		if client.conn == nil {
-			t.Error("withConnection ran the body without a connection")
+		if grpcTransport.conn == nil {
+			t.Error("withTransport ran the body without a connection")
 		}
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("withConnection: %v", err)
+		t.Fatalf("withTransport: %v", err)
 	}
 
 	if called != 1 {
 		t.Errorf("body ran %d times, want 1", called)
 	}
-	if client.conn != nil {
-		t.Error("withConnection left the connection open")
+	if grpcTransport.conn != nil {
+		t.Error("withTransport left the connection open")
 	}
 }
 
-// A failure to build the connection must skip the body and surface as is.
-func TestWithConnectionSkipsTheBodyWhenConnectFails(t *testing.T) {
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{
+// A failure to open the transport must skip the body and surface as is.
+func TestWithTransportSkipsTheBodyWhenOpenFails(t *testing.T) {
+	client := newTestClient(t, "localhost", "33083", SecurityLevels{
 		TLSFlags: TLSSettings{CaFile: filepath.Join(t.TempDir(), "absent-ca.crt")},
 	})
 
-	err := client.withConnection(func(pb.TaklerServerClient) error {
-		t.Error("withConnection ran the body although connect failed")
+	err := client.withTransport(func(Transport) error {
+		t.Error("withTransport ran the body although Open failed")
 		return nil
 	})
 	if err == nil {
-		t.Fatal("withConnection succeeded, want a CA certificate failure")
+		t.Fatal("withTransport succeeded, want a CA certificate failure")
 	}
 }
 
-// The body's error is the caller's error: nothing on the connection path
+// The body's error is the caller's error: nothing on the transport path
 // swallows or rewraps it.
-func TestWithConnectionReturnsTheBodyError(t *testing.T) {
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{})
+func TestWithTransportReturnsTheBodyError(t *testing.T) {
+	client := newTestClient(t, "localhost", "33083", SecurityLevels{})
 	want := NewExitError(ExitServerError, "body failed")
 
-	err := client.withConnection(func(pb.TaklerServerClient) error { return want })
+	err := client.withTransport(func(Transport) error { return want })
 
 	if !errors.Is(err, error(want)) {
 		t.Errorf("error = %v, want %v", err, want)
@@ -142,13 +133,14 @@ func TestWithConnectionReturnsTheBodyError(t *testing.T) {
 }
 
 // Every client carries Credentials, including one built without security levels,
-// so the Call_Wrapper can ask for the Credential_Metadata unconditionally.
+// so the Call_Wrapper can ask for the Credential_Metadata of a call
+// unconditionally.
 func TestClientAlwaysCarriesCredentials(t *testing.T) {
-	if got := NewTaklerServiceClient("localhost", "33083", SecurityLevels{}).Credentials(); got == nil {
+	if got := newTestClient(t, "localhost", "33083", SecurityLevels{}).Credentials(); got == nil {
 		t.Error("client built without security levels carries no credentials")
 	}
 
-	client := NewTaklerServiceClient("localhost", "33083", SecurityLevels{
+	client := newTestClient(t, "localhost", "33083", SecurityLevels{
 		CredFlags: CredentialSettings{SecretFile: "/flag/secret"},
 	})
 	credentials := client.Credentials()
