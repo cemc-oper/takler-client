@@ -1,8 +1,8 @@
 // The client-side transport interface and the transport selection.
 //
 // A *transport* is the one way this client reaches the server over a given
-// wire protocol: gRPC (GrpcTransport, the default, in grpc_transport.go) or,
-// from M3 task 10 on, HTTP. TaklerServiceClient depends only on the Transport
+// wire protocol: gRPC (GrpcTransport, the default, in grpc_transport.go) or
+// HTTP (HttpTransport, in http_transport.go, M3 task 10). TaklerServiceClient depends only on the Transport
 // interface, so a command method never knows which protocol carries its call
 // -- the same role ClientTransport plays for the Python client's
 // takler/client/transport.py, which is the reference implementation.
@@ -46,9 +46,9 @@ const (
 	// TransportGrpc is the gRPC transport: always available, and the default.
 	TransportGrpc = "grpc"
 
-	// TransportHttp is the HTTP transport. It is a known name of the selection
-	// chain from task 9 on, but the implementation lands with M3 task 10; until
-	// then selecting it is a clear construction error, not a silent fallback.
+	// TransportHttp is the HTTP transport (M3 task 10): envelope JSON over
+	// POST /v1/commands/{command}, implemented with the standard library's
+	// net/http only.
 	TransportHttp = "http"
 
 	// DefaultTransport applies when no source selects a transport.
@@ -79,6 +79,14 @@ type Transport interface {
 
 	// Close releases the connection. Always safe to call, even unopened.
 	Close()
+
+	// Classify maps one failed attempt of this transport's wire to the
+	// transport-neutral FailureVerdict the shared retry loop acts on: a gRPC
+	// status code on one transport, an HTTP status code or a connection error
+	// on the other. The classification tables are each transport's own; the
+	// retry window, the backoff, the exit codes and the message shapes the
+	// verdict feeds are shared, so they cannot drift (M3 task 9).
+	Classify(err error) FailureVerdict
 
 	// Child commands.
 
@@ -166,19 +174,12 @@ func ResolveTransport(
 // unknown name is a programming error of the caller, reported as an
 // *ExitError rather than a panic so the cmd layer's single exit point stays
 // the only place that ends the process (requirement 15.9).
-//
-// The HTTP transport lands with M3 task 10; until then selecting it names the
-// situation instead of falling back to gRPC, which would silently dial a
-// protocol the operator did not ask for.
 func newTransport(name string, host string, port string, security SecurityLevels) (Transport, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "", TransportGrpc:
 		return NewGrpcTransport(host, port, security), nil
 	case TransportHttp:
-		return nil, NewExitError(
-			ExitRequestError,
-			"the HTTP transport is not available in this build; it arrives with M3 task 10",
-		)
+		return NewHttpTransport(host, port, security), nil
 	default:
 		return nil, NewExitError(
 			ExitRequestError,

@@ -26,10 +26,9 @@ func newTestClient(t *testing.T, host string, port string, security SecurityLeve
 }
 
 // The constructor carries the resolved transport name into the transport it
-// builds: empty and "grpc" build the gRPC transport, "http" names its own
-// unavailability instead of silently dialing gRPC, and a garbage name --
-// which ResolveTransport would have degraded before it got here -- is
-// rejected as the programming error it is.
+// builds: empty and "grpc" build the gRPC transport, "http" builds the HTTP
+// transport, and a garbage name -- which ResolveTransport would have degraded
+// before it got here -- is rejected as the programming error it is.
 func TestNewClientSelectsTheTransport(t *testing.T) {
 	t.Run("empty name and grpc build the gRPC transport", func(t *testing.T) {
 		for _, name := range []string{"", TransportGrpc} {
@@ -43,18 +42,13 @@ func TestNewClientSelectsTheTransport(t *testing.T) {
 		}
 	})
 
-	t.Run("http is a clear error until its implementation lands", func(t *testing.T) {
-		_, err := NewTaklerServiceClient("localhost", "33083", TransportHttp, SecurityLevels{})
-
-		var exitErr *ExitError
-		if !errors.As(err, &exitErr) {
-			t.Fatalf("error is %v (%T), want *ExitError", err, err)
+	t.Run("http builds the HTTP transport", func(t *testing.T) {
+		client, err := NewTaklerServiceClient("localhost", "8083", TransportHttp, SecurityLevels{})
+		if err != nil {
+			t.Fatalf("transport %q: %v", TransportHttp, err)
 		}
-		if exitErr.Code != ExitRequestError {
-			t.Errorf("exit code = %d, want %d", exitErr.Code, ExitRequestError)
-		}
-		if !strings.Contains(exitErr.Message, "HTTP") {
-			t.Errorf("message %q does not name the HTTP transport", exitErr.Message)
+		if _, ok := client.transport.(*HttpTransport); !ok {
+			t.Errorf("transport %q built %T, want *HttpTransport", TransportHttp, client.transport)
 		}
 	})
 

@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -44,6 +44,15 @@ proto-sync:
 # from a fresh regeneration.
 proto-check:
 	./scripts/proto.sh check
+
+# http-contract runs the Go client's full command matrix over HTTP against a
+# real takler server (M3 task 10), asserting every command's exit code and
+# output line. TAKLER_REPO points at the takler checkout, default ../takler;
+# the script builds the server environment with uv and needs the binary built
+# (make all) first. It is not part of "make check" because it needs the
+# sibling repo; CI runs it as its own job.
+http-contract:
+	TAKLER_REPO="$${TAKLER_REPO:-../takler}" ./scripts/http_contract.sh
 
 # check is what CI runs, and what to run locally before pushing. The CI workflow
 # invokes these same targets one per step, so that the failing step is visible in

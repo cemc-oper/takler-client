@@ -120,6 +120,12 @@ func (t *GrpcTransport) getTarget() string {
 	return fmt.Sprintf("passthrough:///%s", t.getServerAddress())
 }
 
+// Classify maps a failed gRPC attempt to its transport-neutral verdict; it is
+// classifyGrpcError, exposed through the Transport interface.
+func (t *GrpcTransport) Classify(err error) FailureVerdict {
+	return classifyGrpcError(err)
+}
+
 // classifyGrpcError maps a failed gRPC attempt to its transport-neutral
 // verdict (requirement 14.3, 14.7).
 //

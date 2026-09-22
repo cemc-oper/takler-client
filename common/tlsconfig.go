@@ -1,6 +1,8 @@
 package common
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"strings"
@@ -108,4 +110,46 @@ func BuildTransportCredentials(flags TLSSettings, config TLSSettings) (credentia
 	}
 
 	return creds, nil
+}
+
+// BuildHTTPTLSConfig returns the TLS client configuration of the HTTP
+// transport (M3 task 10), or nil when no CA certificate is configured, which
+// leaves the transport on plaintext HTTP (requirement 13.3, mirrored on the
+// HTTP wire).
+//
+// The rules are the gRPC channel's, restated for crypto/tls: the configured CA
+// certificate is the root of trust (requirement 13.2), and a resolved host
+// name override becomes tls.Config.ServerName (requirement 13.5) -- crypto/tls
+// honors the override natively, unlike the Python client's httpx, which
+// always verifies against the URL host and can only warn about an override.
+//
+// The failure shape mirrors BuildTransportCredentials: an unreadable or
+// unparseable CA certificate file is an *ExitError carrying ExitRequestError
+// with a single line naming the path and the reason (requirement 13.12).
+func BuildHTTPTLSConfig(flags TLSSettings, config TLSSettings) (*tls.Config, error) {
+	caFile := ResolveCaFile(flags, config)
+	if caFile == "" {
+		return nil, nil
+	}
+
+	content, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, NewExitError(
+			ExitRequestError,
+			fmt.Sprintf("cannot use CA certificate file %q: %v", caFile, err),
+		)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(content) {
+		return nil, NewExitError(
+			ExitRequestError,
+			fmt.Sprintf("cannot use CA certificate file %q: no PEM certificate found", caFile),
+		)
+	}
+
+	tlsConfig := &tls.Config{RootCAs: pool}
+	if serverName := ResolveServerName(flags, config); serverName != "" {
+		tlsConfig.ServerName = serverName
+	}
+	return tlsConfig, nil
 }

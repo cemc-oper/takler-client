@@ -145,10 +145,12 @@ type callSettings struct {
 
 // callWith is Call with the retry policy and the diagnostics sink supplied.
 //
-// The gRPC specific parts are exactly two: the credentials become gRPC
-// metadata on the outgoing context, and a failed attempt is classified by
-// classifyGrpcError. The attempt loop itself is RunWithRetry's, shared with
-// every future transport.
+// The transport specific parts are exactly two: the credentials become gRPC
+// metadata on the outgoing context (the HTTP transport reads the same
+// metadata and turns it into request headers -- the header names are the
+// metadata keys), and a failed attempt is classified by the transport's own
+// Classify. The attempt loop itself is RunWithRetry's, shared by both
+// transports.
 func callWith[Req any, Resp any](
 	c *TaklerServiceClient,
 	ctx context.Context,
@@ -191,7 +193,7 @@ func callWith[Req any, Resp any](
 		func() (Resp, error) {
 			return callOnce(callCtx, policy.Timeout(), req, invoke)
 		},
-		classifyGrpcError,
+		c.transport.Classify,
 	)
 }
 

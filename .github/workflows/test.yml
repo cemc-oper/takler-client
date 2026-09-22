@@ -88,3 +88,36 @@ jobs:
     # 生成后 diff 为空。任一端 proto 落后都会让本 job 变红。
     - name: Proto drift check
       run: TAKLER_REPO="${{ github.workspace }}/takler-src" make proto-check
+
+  http-contract:
+
+    # HTTP 通道的跨语言契约测试（M3 任务 10）：对真实 takler 服务端的 HTTP 端口跑
+    # Go 客户端的全命令矩阵，逐条断言退出码与输出行（scripts/http_contract.sh）。
+    # 服务端来自 takler 仓的检出（与 proto-drift 同一模式），经 uv 以 http extra
+    # 启动；客户端是本仓构建出的二进制。
+
+    name: http contract
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check out the takler repo (the server)
+      uses: actions/checkout@v4
+      with:
+        repository: cemc-oper/takler
+        path: takler-src
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache-dependency-path: go.sum
+    - name: Build the client
+      run: make all
+    # 服务端由 takler 仓锁定的 uv 环境运行，这里只需装 uv 本身。
+    - name: Install uv
+      uses: astral-sh/setup-uv@v10.0.1
+      with:
+        enable-cache: true
+    - name: Run the HTTP command matrix against a real server
+      run: TAKLER_REPO="${{ github.workspace }}/takler-src" make http-contract
