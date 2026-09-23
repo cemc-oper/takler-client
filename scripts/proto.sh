@@ -6,18 +6,18 @@
 # source of truth of the wire protocol. This script keeps the copy in
 # takler_protocol/ and the generated Go stubs in step with it:
 #
-#   scripts/proto.sh sync    copy takler.proto from the takler repo and
-#                            regenerate the Go stubs
-#   scripts/proto.sh check   fail when takler_protocol/takler.proto differs
-#                            from the source of truth, or when the checked in
-#                            stubs differ from a fresh regeneration
+#   bash scripts/proto.sh sync    copy takler.proto from the takler repo and
+#                                 regenerate the Go stubs
+#   bash scripts/proto.sh check   fail when takler_protocol/takler.proto differs
+#                                 from the source of truth, or when the checked in
+#                                 stubs differ from a fresh regeneration
 #
 # "make proto-sync" / "make proto-check" are thin wrappers; CI runs the check
 # mode so a proto change merged on only one side turns that side red.
 #
 # The takler repo location defaults to ../takler (the workspace layout) and
 # can be overridden:
-#   TAKLER_REPO=/path/to/takler scripts/proto.sh check
+#   TAKLER_REPO=/path/to/takler bash scripts/proto.sh check
 #
 # protoc comes from the takler repo's locked uv environment (grpcio-tools in
 # its dev dependency group), so the compiler version follows takler's uv.lock
@@ -96,7 +96,7 @@ check() {
 
     if ! cmp -s "${source_proto}" "${proto_dir}/takler.proto"; then
         echo "proto: ${proto_dir}/takler.proto differs from ${source_proto}" >&2
-        echo "proto: run \"scripts/proto.sh sync\" in this repo to catch up" >&2
+        echo "proto: run \"bash scripts/proto.sh sync\" in this repo to catch up" >&2
         failed=1
     fi
 
@@ -108,7 +108,7 @@ check() {
     local stub
     for stub in takler.pb.go takler_grpc.pb.go; do
         if ! diff -u "${proto_dir}/${stub}" "${gen_dir}/${proto_dir}/${stub}"; then
-            echo "proto: ${proto_dir}/${stub} is stale; regenerate with \"scripts/proto.sh sync\"" >&2
+            echo "proto: ${proto_dir}/${stub} is stale; regenerate with \"bash scripts/proto.sh sync\"" >&2
             failed=1
         fi
     done

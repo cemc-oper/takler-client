@@ -37,13 +37,13 @@ cover-check:
 # truth, TAKLER_REPO environment variable, default ../takler) and regenerates
 # the Go stubs. Run this after the proto changed on the takler side.
 proto-sync:
-	./scripts/proto.sh sync
+	bash ./scripts/proto.sh sync
 
 # proto-check is the drift gate: it fails when takler_protocol/takler.proto
 # differs from the takler repo's copy, or when the checked in stubs differ
 # from a fresh regeneration.
 proto-check:
-	./scripts/proto.sh check
+	bash ./scripts/proto.sh check
 
 # http-contract runs the Go client's full command matrix over HTTP against a
 # real takler server (M3 task 10), asserting every command's exit code and
@@ -52,7 +52,7 @@ proto-check:
 # (make all) first. It is not part of "make check" because it needs the
 # sibling repo; CI runs it as its own job.
 http-contract:
-	TAKLER_REPO="$${TAKLER_REPO:-../takler}" ./scripts/http_contract.sh
+	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/http_contract.sh
 
 # check is what CI runs, and what to run locally before pushing. The CI workflow
 # invokes these same targets one per step, so that the failing step is visible in
