@@ -365,9 +365,10 @@ func (t *HttpTransport) post(
 		)
 	}
 
+	traceID := newTraceID()
 	body, err := json.Marshal(map[string]any{
 		"version":  ProtocolVersion,
-		"trace_id": newTraceID(),
+		"trace_id": traceID,
 		"command":  command,
 		"payload":  payload,
 	})
@@ -410,6 +411,9 @@ func (t *HttpTransport) post(
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&answer); err != nil {
 		return nil, &httpResponseError{err: err}
+	}
+	if isBatchCommand(command) && (answer.Command != command || answer.TraceID != traceID || answer.Version != ProtocolVersion) {
+		return nil, &httpResponseError{err: errors.New("batch envelope does not match request")}
 	}
 	if answer.Payload == nil {
 		return nil, &httpResponseError{err: errors.New("the envelope carries no payload")}
@@ -514,32 +518,32 @@ func (t *HttpTransport) RunCommandMeter(ctx context.Context, req *pb.MeterComman
 	})
 }
 
-func (t *HttpTransport) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.ServiceResponse, error) {
-	return t.serviceCall(ctx, "requeue", map[string]any{
+func (t *HttpTransport) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.BatchResponse, error) {
+	return t.batchCall(ctx, "requeue", map[string]any{
 		"node_paths": req.GetNodePath(),
 	})
 }
 
-func (t *HttpTransport) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.ServiceResponse, error) {
-	return t.serviceCall(ctx, "suspend", map[string]any{
+func (t *HttpTransport) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.BatchResponse, error) {
+	return t.batchCall(ctx, "suspend", map[string]any{
 		"node_paths": req.GetNodePath(),
 	})
 }
 
-func (t *HttpTransport) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.ServiceResponse, error) {
-	return t.serviceCall(ctx, "resume", map[string]any{
+func (t *HttpTransport) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.BatchResponse, error) {
+	return t.batchCall(ctx, "resume", map[string]any{
 		"node_paths": req.GetNodePath(),
 	})
 }
 
-func (t *HttpTransport) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.ServiceResponse, error) {
-	return t.serviceCall(ctx, "run", map[string]any{
+func (t *HttpTransport) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.BatchResponse, error) {
+	return t.batchCall(ctx, "run", map[string]any{
 		"node_paths": req.GetNodePath(),
 		"force":      req.GetForce(),
 	})
 }
 
-func (t *HttpTransport) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.ServiceResponse, error) {
+func (t *HttpTransport) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.BatchResponse, error) {
 	// The state travels as its name; an unknown number cannot come from the
 	// cmd layer (which validates before calling) and is spelled as the number
 	// so the server's rejection names what arrived.
@@ -547,19 +551,19 @@ func (t *HttpTransport) RunCommandForce(ctx context.Context, req *pb.ForceComman
 	if !ok {
 		state = strconv.Itoa(int(req.GetState()))
 	}
-	return t.serviceCall(ctx, "force", map[string]any{
+	return t.batchCall(ctx, "force", map[string]any{
 		"paths":     req.GetPath(),
 		"state":     state,
 		"recursive": req.GetRecursive(),
 	})
 }
 
-func (t *HttpTransport) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.ServiceResponse, error) {
+func (t *HttpTransport) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.BatchResponse, error) {
 	depType, ok := pb.FreeDepCommand_DepType_name[int32(req.GetDepType())]
 	if !ok {
 		depType = strconv.Itoa(int(req.GetDepType()))
 	}
-	return t.serviceCall(ctx, "free-dep", map[string]any{
+	return t.batchCall(ctx, "free-dep", map[string]any{
 		"paths":    req.GetPath(),
 		"dep_type": depType,
 	})
@@ -572,8 +576,8 @@ func (t *HttpTransport) RunCommandLoad(ctx context.Context, req *pb.LoadCommand)
 	})
 }
 
-func (t *HttpTransport) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.ServiceResponse, error) {
-	return t.serviceCall(ctx, "begin", map[string]any{
+func (t *HttpTransport) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.BatchResponse, error) {
+	return t.batchCall(ctx, "begin", map[string]any{
 		"flow_name": req.GetFlowName(),
 		"force":     req.GetForce(),
 	})

@@ -66,7 +66,10 @@ func newClient(host string, port string) (*common.TaklerServiceClient, error) {
 // mapping of that Error_Code (requirements 15.2, 15.3) and whose message names
 // the classification, so the operator reads "node_not_found: ..." instead of a
 // bare number.
-func reportCommandResponse(response *pb.ServiceResponse) error {
+func reportCommandResponse(response interface {
+	GetFlag() int32
+	GetMessage() string
+}) error {
 	if response == nil {
 		// Unreachable while common returns either a response or an error; kept
 		// so a future change there cannot make this print "received: success"
@@ -74,6 +77,18 @@ func reportCommandResponse(response *pb.ServiceResponse) error {
 		return common.NewExitError(common.ExitServerError, "the server returned no response")
 	}
 
+	if service, ok := response.(*pb.ServiceResponse); ok && service == nil {
+		return common.NewExitError(common.ExitServerError, "the server returned no response")
+	}
+	if batch, ok := response.(*pb.BatchResponse); ok {
+		if batch == nil {
+			return common.NewExitError(common.ExitServerError, "the server returned no response")
+		}
+		for _, item := range batch.Results {
+			fmt.Printf("[%d] %s %s effect=%s: %s\n", item.Index, item.Target, common.ErrorName(item.Flag), item.Effect, item.Message)
+		}
+		fmt.Println(batch.Message)
+	}
 	flag := response.GetFlag()
 	if flag == common.ErrorCodeSuccess {
 		fmt.Printf("received: %s\n", common.ErrorName(flag))

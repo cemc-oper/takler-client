@@ -21,21 +21,21 @@ import (
 // The returned response is the server's, flag included: a non zero flag is a
 // business failure the caller turns into an exit code, not an error of the call
 // (requirement 14.8).
-func (c *TaklerServiceClient) RunCommandRequeue(nodePaths []string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandRequeue(nodePaths []string) (*pb.BatchResponse, error) {
 	return CallCommand(c, "requeue", KindControl, &pb.RequeueCommand{
 		NodePath: nodePaths,
 	}, Transport.RunCommandRequeue)
 }
 
 // RunCommandSuspend suspends every node in nodePaths.
-func (c *TaklerServiceClient) RunCommandSuspend(nodePaths []string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandSuspend(nodePaths []string) (*pb.BatchResponse, error) {
 	return CallCommand(c, "suspend", KindControl, &pb.SuspendCommand{
 		NodePath: nodePaths,
 	}, Transport.RunCommandSuspend)
 }
 
 // RunCommandResume resumes every node in nodePaths.
-func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) (*pb.BatchResponse, error) {
 	return CallCommand(c, "resume", KindControl, &pb.ResumeCommand{
 		NodePath: nodePaths,
 	}, Transport.RunCommandResume)
@@ -43,7 +43,7 @@ func (c *TaklerServiceClient) RunCommandResume(nodePaths []string) (*pb.ServiceR
 
 // RunCommandRun runs every node in nodePaths, ignoring their dependencies when
 // force is set.
-func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) (*pb.BatchResponse, error) {
 	return CallCommand(c, "run", KindControl, &pb.RunCommand{
 		NodePath: nodePaths,
 		Force:    force,
@@ -60,7 +60,7 @@ func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) (*pb
 // ExitServerError, mirroring what that ValueError becomes on the Python side:
 // it is not a TaklerError, so it lands on the generic exception path of the
 // CLI's exit code mapping (requirement 15.5).
-func (c *TaklerServiceClient) RunCommandForce(nodePaths []string, state string, recursive bool) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandForce(nodePaths []string, state string, recursive bool) (*pb.BatchResponse, error) {
 	forceState, ok := pb.ForceCommand_ForceState_value[state]
 	if !ok {
 		return nil, NewExitError(
@@ -85,7 +85,7 @@ func (c *TaklerServiceClient) RunCommandForce(nodePaths []string, state string, 
 // depType is one of the FreeDepCommand.DepType names (all, trigger, time) and
 // is translated client side for the same reason, and with the same failure
 // mapping, as the state of RunCommandForce.
-func (c *TaklerServiceClient) RunCommandFreeDep(nodePaths []string, depType string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandFreeDep(nodePaths []string, depType string) (*pb.BatchResponse, error) {
 	depTypeValue, ok := pb.FreeDepCommand_DepType_value[depType]
 	if !ok {
 		return nil, NewExitError(
@@ -129,7 +129,7 @@ func (c *TaklerServiceClient) RunCommandLoad(flowType string, flowFilePath strin
 // RunCommandBegin begins the flow named flowName, or every flow when flowName
 // is empty (requirement 8.1 of the Python side, whose empty string is the wire
 // form of "all flows"). force begins an already begun flow again.
-func (c *TaklerServiceClient) RunCommandBegin(flowName string, force bool) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandBegin(flowName string, force bool) (*pb.BatchResponse, error) {
 	return CallCommand(c, "begin", KindControl, &pb.BeginCommand{
 		FlowName: flowName,
 		Force:    force,

@@ -117,6 +117,20 @@ func newFakeHTTPServer(t *testing.T, opts ...fakeHTTPOption) *fakeHTTPServer {
 		failCode := fake.failCode
 		payload := fake.payloads[envelope.Command]
 		fake.mu.Unlock()
+		if payload == nil && isBatchCommand(envelope.Command) {
+			targets, _ := envelope.Payload["node_paths"].([]any)
+			if targets == nil {
+				targets, _ = envelope.Payload["paths"].([]any)
+			}
+			if name, ok := envelope.Payload["flow_name"].(string); ok && name != "" {
+				targets = []any{"/" + name}
+			}
+			results := []any{}
+			for i, target := range targets {
+				results = append(results, map[string]any{"index": i, "target": target, "flag": 0, "message": "success", "effect": "applied"})
+			}
+			payload = map[string]any{"flag": 0, "message": "success", "results": results}
+		}
 
 		if failCount < 0 || attempt <= failCount {
 			w.Header().Set("Content-Type", "application/json")

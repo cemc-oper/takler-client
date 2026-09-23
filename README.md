@@ -165,3 +165,15 @@ Copyright 2022-2024, developers at cemc-oper.
 `takler` is licensed under [Apache License, Version 2.0](./LICENSE).
 
 <span style="color:#01665e">t</span><span style="color:#5ab4ac">a</span><span style="color:#c7eae5">k</span><span style="color:#f6e8c3">l</span><span style="color:#d8b365">e</span><span style="color:#8c510a">r</span>
+
+### Batch control results
+
+`requeue`, `suspend`, `resume`, `run`, `force`, `free-dep`, and `begin` return
+ordered best-effort results. Invalid targets and execution failures do not stop
+remaining targets; successful operations are not rolled back. Duplicates and
+overlapping parent/child targets execute in the supplied order. Each result
+prints its index, target, error classification and effect (`none`, `applied`,
+`partial`, or `unknown`), followed by a summary on stdout. Any failed item
+produces `batch_failed` (16), an error summary on stderr, and exit code 1.
+Both HTTP and gRPC make only one attempt for these mutations, regardless of
+`TAKLER_TIMEOUT`. A lost response can mean the operation already took effect.

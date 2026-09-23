@@ -40,6 +40,7 @@ var errorCodeContractTable = []errorCodeContractEntry{
 	{code: 13, name: "unsupported_value"},
 	{code: 14, name: "flow_state"},
 	{code: 15, name: "invalid_request"},
+	{code: 16, name: "batch_failed"},
 	{code: 20, name: "expression_syntax"},
 	{code: 30, name: "job_submission"},
 	{code: 31, name: "zombie"},
@@ -55,7 +56,7 @@ var errorCodeContractTable = []errorCodeContractEntry{
 // a negative flag, and both int32 extremes. All of them must classify as
 // UnknownErrorName (requirement 15.7).
 var errorCodeUnregisteredCodes = []int32{
-	2, 9, 16, 19, 21, 29, 32, 39, 44, 98, 100,
+	2, 9, 17, 19, 21, 29, 32, 39, 44, 98, 100,
 	-1, math.MinInt32, math.MaxInt32,
 }
 

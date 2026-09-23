@@ -410,3 +410,20 @@ security:
 		t.Error("credentials = nil, want the credentials built from the security levels")
 	}
 }
+
+func TestBatchReportPrintsAllItemsAndReturnsAggregateError(t *testing.T) {
+	var err error
+	output := captureStdout(t, func() {
+		err = reportCommandResponse(&pb.BatchResponse{Flag: 16, Message: "processed=3 succeeded=2 failed=1", Results: []*pb.BatchItemResult{
+			{Index: 0, Target: "/f/a", Effect: "applied"}, {Index: 1, Target: "/missing", Flag: 10, Effect: "none"}, {Index: 2, Target: "/f/b", Effect: "applied"},
+		}})
+	})
+	for _, fragment := range []string{"[0] /f/a success effect=applied", "[1] /missing node_not_found effect=none", "[2] /f/b success effect=applied", "processed=3 succeeded=2 failed=1"} {
+		if !strings.Contains(output, fragment) {
+			t.Fatalf("missing %q in %q", fragment, output)
+		}
+	}
+	if err == nil {
+		t.Fatal("mixed batch reported success")
+	}
+}

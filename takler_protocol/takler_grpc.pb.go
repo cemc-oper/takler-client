@@ -47,14 +47,14 @@ type TaklerServerClient interface {
 	RunCommandAbort(ctx context.Context, in *AbortCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandEvent(ctx context.Context, in *EventCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandMeter(ctx context.Context, in *MeterCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandRequeue(ctx context.Context, in *RequeueCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandSuspend(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
+	RunCommandRequeue(ctx context.Context, in *RequeueCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandSuspend(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*BatchResponse, error)
 	RunCommandLoad(ctx context.Context, in *LoadCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
-	RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
+	RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*BatchResponse, error)
 	RunRequestShow(ctx context.Context, in *ShowRequest, opts ...grpc.CallOption) (*ShowResponse, error)
 	RunRequestPing(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	QueryCoroutine(ctx context.Context, in *CoroutineRequest, opts ...grpc.CallOption) (*CoroutineResponse, error)
@@ -118,9 +118,9 @@ func (c *taklerServerClient) RunCommandMeter(ctx context.Context, in *MeterComma
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandRequeue(ctx context.Context, in *RequeueCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandRequeue(ctx context.Context, in *RequeueCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandRequeue_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -128,9 +128,9 @@ func (c *taklerServerClient) RunCommandRequeue(ctx context.Context, in *RequeueC
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandSuspend(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandSuspend(ctx context.Context, in *SuspendCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandSuspend_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -138,9 +138,9 @@ func (c *taklerServerClient) RunCommandSuspend(ctx context.Context, in *SuspendC
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandResume(ctx context.Context, in *ResumeCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandResume_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -148,9 +148,9 @@ func (c *taklerServerClient) RunCommandResume(ctx context.Context, in *ResumeCom
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandRun_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -158,9 +158,9 @@ func (c *taklerServerClient) RunCommandRun(ctx context.Context, in *RunCommand, 
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandForce_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -168,9 +168,9 @@ func (c *taklerServerClient) RunCommandForce(ctx context.Context, in *ForceComma
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandFreeDep_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -188,9 +188,9 @@ func (c *taklerServerClient) RunCommandLoad(ctx context.Context, in *LoadCommand
 	return out, nil
 }
 
-func (c *taklerServerClient) RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+func (c *taklerServerClient) RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*BatchResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServiceResponse)
+	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, TaklerServer_RunCommandBegin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -238,14 +238,14 @@ type TaklerServerServer interface {
 	RunCommandAbort(context.Context, *AbortCommand) (*ServiceResponse, error)
 	RunCommandEvent(context.Context, *EventCommand) (*ServiceResponse, error)
 	RunCommandMeter(context.Context, *MeterCommand) (*ServiceResponse, error)
-	RunCommandRequeue(context.Context, *RequeueCommand) (*ServiceResponse, error)
-	RunCommandSuspend(context.Context, *SuspendCommand) (*ServiceResponse, error)
-	RunCommandResume(context.Context, *ResumeCommand) (*ServiceResponse, error)
-	RunCommandRun(context.Context, *RunCommand) (*ServiceResponse, error)
-	RunCommandForce(context.Context, *ForceCommand) (*ServiceResponse, error)
-	RunCommandFreeDep(context.Context, *FreeDepCommand) (*ServiceResponse, error)
+	RunCommandRequeue(context.Context, *RequeueCommand) (*BatchResponse, error)
+	RunCommandSuspend(context.Context, *SuspendCommand) (*BatchResponse, error)
+	RunCommandResume(context.Context, *ResumeCommand) (*BatchResponse, error)
+	RunCommandRun(context.Context, *RunCommand) (*BatchResponse, error)
+	RunCommandForce(context.Context, *ForceCommand) (*BatchResponse, error)
+	RunCommandFreeDep(context.Context, *FreeDepCommand) (*BatchResponse, error)
 	RunCommandLoad(context.Context, *LoadCommand) (*ServiceResponse, error)
-	RunCommandBegin(context.Context, *BeginCommand) (*ServiceResponse, error)
+	RunCommandBegin(context.Context, *BeginCommand) (*BatchResponse, error)
 	RunRequestShow(context.Context, *ShowRequest) (*ShowResponse, error)
 	RunRequestPing(context.Context, *PingRequest) (*PingResponse, error)
 	QueryCoroutine(context.Context, *CoroutineRequest) (*CoroutineResponse, error)
@@ -274,28 +274,28 @@ func (UnimplementedTaklerServerServer) RunCommandEvent(context.Context, *EventCo
 func (UnimplementedTaklerServerServer) RunCommandMeter(context.Context, *MeterCommand) (*ServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandMeter not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandRequeue(context.Context, *RequeueCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandRequeue(context.Context, *RequeueCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandRequeue not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandSuspend(context.Context, *SuspendCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandSuspend(context.Context, *SuspendCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandSuspend not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandResume(context.Context, *ResumeCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandResume(context.Context, *ResumeCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandResume not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandRun(context.Context, *RunCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandRun(context.Context, *RunCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandRun not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandForce(context.Context, *ForceCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandForce(context.Context, *ForceCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandForce not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandFreeDep(context.Context, *FreeDepCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandFreeDep(context.Context, *FreeDepCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandFreeDep not implemented")
 }
 func (UnimplementedTaklerServerServer) RunCommandLoad(context.Context, *LoadCommand) (*ServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandLoad not implemented")
 }
-func (UnimplementedTaklerServerServer) RunCommandBegin(context.Context, *BeginCommand) (*ServiceResponse, error) {
+func (UnimplementedTaklerServerServer) RunCommandBegin(context.Context, *BeginCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandBegin not implemented")
 }
 func (UnimplementedTaklerServerServer) RunRequestShow(context.Context, *ShowRequest) (*ShowResponse, error) {

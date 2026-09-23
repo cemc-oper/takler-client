@@ -98,14 +98,14 @@ type Transport interface {
 
 	// Control commands.
 
-	RunCommandRequeue(context.Context, *pb.RequeueCommand) (*pb.ServiceResponse, error)
-	RunCommandSuspend(context.Context, *pb.SuspendCommand) (*pb.ServiceResponse, error)
-	RunCommandResume(context.Context, *pb.ResumeCommand) (*pb.ServiceResponse, error)
-	RunCommandRun(context.Context, *pb.RunCommand) (*pb.ServiceResponse, error)
-	RunCommandForce(context.Context, *pb.ForceCommand) (*pb.ServiceResponse, error)
-	RunCommandFreeDep(context.Context, *pb.FreeDepCommand) (*pb.ServiceResponse, error)
+	RunCommandRequeue(context.Context, *pb.RequeueCommand) (*pb.BatchResponse, error)
+	RunCommandSuspend(context.Context, *pb.SuspendCommand) (*pb.BatchResponse, error)
+	RunCommandResume(context.Context, *pb.ResumeCommand) (*pb.BatchResponse, error)
+	RunCommandRun(context.Context, *pb.RunCommand) (*pb.BatchResponse, error)
+	RunCommandForce(context.Context, *pb.ForceCommand) (*pb.BatchResponse, error)
+	RunCommandFreeDep(context.Context, *pb.FreeDepCommand) (*pb.BatchResponse, error)
 	RunCommandLoad(context.Context, *pb.LoadCommand) (*pb.ServiceResponse, error)
-	RunCommandBegin(context.Context, *pb.BeginCommand) (*pb.ServiceResponse, error)
+	RunCommandBegin(context.Context, *pb.BeginCommand) (*pb.BatchResponse, error)
 
 	// Query commands.
 

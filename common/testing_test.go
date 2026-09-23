@@ -230,36 +230,36 @@ func (s *fakeServicer) RunCommandAbort(ctx context.Context, req *pb.AbortCommand
 
 // Control commands.
 
-func (s *fakeServicer) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandRequeue", req)
+func (s *fakeServicer) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandRequeue", req)
 }
 
-func (s *fakeServicer) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandSuspend", req)
+func (s *fakeServicer) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandSuspend", req)
 }
 
-func (s *fakeServicer) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandResume", req)
+func (s *fakeServicer) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandResume", req)
 }
 
-func (s *fakeServicer) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandRun", req)
+func (s *fakeServicer) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandRun", req)
 }
 
-func (s *fakeServicer) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandForce", req)
+func (s *fakeServicer) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandForce", req)
 }
 
-func (s *fakeServicer) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandFreeDep", req)
+func (s *fakeServicer) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandFreeDep", req)
 }
 
 func (s *fakeServicer) RunCommandLoad(ctx context.Context, req *pb.LoadCommand) (*pb.ServiceResponse, error) {
 	return s.serviceCall(ctx, "RunCommandLoad", req)
 }
 
-func (s *fakeServicer) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.ServiceResponse, error) {
-	return s.serviceCall(ctx, "RunCommandBegin", req)
+func (s *fakeServicer) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.BatchResponse, error) {
+	return s.batchCall(ctx, "RunCommandBegin", req)
 }
 
 // Query commands.
@@ -521,4 +521,30 @@ func TestFakeServerHarness(t *testing.T) {
 			}
 		}
 	})
+}
+
+func (s *fakeServicer) batchCall(ctx context.Context, method string, request proto.Message) (*pb.BatchResponse, error) {
+	r, err := s.serviceCall(ctx, method, request)
+	if err != nil {
+		return nil, err
+	}
+	response := &pb.BatchResponse{Flag: r.Flag, Message: r.Message}
+	if r.Flag != 0 {
+		return response, nil
+	}
+	var targets []string
+	switch req := request.(type) {
+	case interface{ GetNodePath() []string }:
+		targets = req.GetNodePath()
+	case interface{ GetPath() []string }:
+		targets = req.GetPath()
+	case *pb.BeginCommand:
+		if req.FlowName != "" {
+			targets = []string{"/" + req.FlowName}
+		}
+	}
+	for i, target := range targets {
+		response.Results = append(response.Results, &pb.BatchItemResult{Index: uint32(i), Target: target, Effect: "applied"})
+	}
+	return response, nil
 }

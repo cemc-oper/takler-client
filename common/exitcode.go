@@ -57,6 +57,7 @@ var ExitCodeByErrorCode = map[int32]int{
 	13: ExitRequestError, // unsupported_value
 	14: ExitRequestError, // flow_state
 	15: ExitRequestError, // invalid_request
+	16: ExitRequestError,
 	20: ExitRequestError, // expression_syntax
 	30: ExitServerError,  // job_submission
 	31: ExitServerError,  // zombie

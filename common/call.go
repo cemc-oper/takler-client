@@ -23,6 +23,7 @@ package common
 
 import (
 	"context"
+	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"io"
 	"os"
 	"time"
@@ -77,6 +78,12 @@ func CallCommand[Req any, Resp any](
 		return zero, err
 	}
 
+	if batch, ok := any(response).(*pb.BatchResponse); ok {
+		if err := validateBatch(req, batch); err != nil {
+			var zero Resp
+			return zero, err
+		}
+	}
 	return response, nil
 }
 
@@ -172,6 +179,11 @@ func callWith[Req any, Resp any](
 	policy := settings.policy
 	if policy == nil {
 		policy = NewRetryPolicy(kind)
+	}
+	if isBatchCommand(name) {
+		copy := *policy
+		copy.RetryWindow = 0
+		policy = &copy
 	}
 	warn := settings.warn
 	if warn == nil {

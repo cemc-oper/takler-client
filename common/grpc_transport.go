@@ -173,27 +173,27 @@ func (t *GrpcTransport) RunCommandMeter(ctx context.Context, req *pb.MeterComman
 	return t.client.RunCommandMeter(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandRequeue(ctx context.Context, req *pb.RequeueCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandRequeue(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandSuspend(ctx context.Context, req *pb.SuspendCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandSuspend(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandResume(ctx context.Context, req *pb.ResumeCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandResume(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandRun(ctx context.Context, req *pb.RunCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandRun(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandForce(ctx context.Context, req *pb.ForceCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandForce(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandFreeDep(ctx context.Context, req *pb.FreeDepCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandFreeDep(ctx, req)
 }
 
@@ -201,7 +201,7 @@ func (t *GrpcTransport) RunCommandLoad(ctx context.Context, req *pb.LoadCommand)
 	return t.client.RunCommandLoad(ctx, req)
 }
 
-func (t *GrpcTransport) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.ServiceResponse, error) {
+func (t *GrpcTransport) RunCommandBegin(ctx context.Context, req *pb.BeginCommand) (*pb.BatchResponse, error) {
 	return t.client.RunCommandBegin(ctx, req)
 }
 

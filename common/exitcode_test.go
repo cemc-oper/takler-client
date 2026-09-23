@@ -29,6 +29,7 @@ var exitCodeErrorCodeTable = []exitCodeErrorCodeCase{
 	{name: "unsupported_value", code: 13, expected: ExitRequestError},
 	{name: "flow_state", code: 14, expected: ExitRequestError},
 	{name: "invalid_request", code: 15, expected: ExitRequestError},
+	{name: "batch_failed", code: 16, expected: ExitRequestError},
 	{name: "expression_syntax", code: 20, expected: ExitRequestError},
 	{name: "job_submission", code: 30, expected: ExitServerError},
 	{name: "zombie", code: 31, expected: ExitServerError},
