@@ -19,7 +19,9 @@ import (
 )
 
 // RunQueryShow prints the server's bunch tree, with the item classes the flags
-// select.
+// select. The output is the server's safe JSON projection: node_kind,
+// generated_parameters and redacted_parameters remain intact for JSON consumers.
+// Execution type labels are data; the client never loads scheduler plugins.
 func (c *TaklerServiceClient) RunQueryShow(
 	showTrigger bool,
 	showParameter bool,

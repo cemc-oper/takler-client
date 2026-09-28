@@ -209,3 +209,18 @@ signed int64 decimal strings for meters. Invalid HTTP requests exit 1; malformed
 200 responses exit 3. `make check` also compares the shared wire schema and seed
 vectors with the paired Python checkout. `make replace-contract` exercises both
 CLIs and both transports against a real Python server.
+
+### Safe show queries
+
+`show` prints a connection banner followed by the server's JSON projection over
+both HTTP and gRPC. Nodes carry
+`node_kind`, safe `generated_parameters`, and `redacted_parameters`; root user
+parameters are retained. Unknown execution type labels require no local plugin.
+Parameters matching built-in credential names or the server's
+`security.query_redacted_parameters` list have the value `<redacted>`. The name
+list distinguishes redaction from a literal value. This view is for inspection,
+not a definition or checkpoint document.
+
+Run `UV_CACHE_DIR=/tmp/takler-uv-cache make show-contract` to exercise both CLIs
+against the paired Python server over HTTP and gRPC, including unknown task types
+and parameter redaction. `TAKLER_REPO` selects the Python checkout.
