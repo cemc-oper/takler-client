@@ -60,7 +60,7 @@ func assertUnreachable(t *testing.T, err error) {
 	}
 }
 
-// Every one of the sixteen methods returns the Call_Wrapper's error rather
+// Every one of the seventeen methods returns the Call_Wrapper's error rather
 // than dying, and does so without waiting on a per-method timeout of its own.
 //
 // load is the exception that proves the setup: it reads its flow file before

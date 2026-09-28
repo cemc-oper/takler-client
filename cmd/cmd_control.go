@@ -10,6 +10,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/cemc-oper/takler-client/common"
 
 	"github.com/spf13/cobra"
 )
@@ -388,4 +389,41 @@ func (mc *beginCommand) runCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	return reportCommandResponse(response)
+}
+
+// replace updates an existing flow and begins its new definition.
+type replaceCommand struct {
+	BaseCommand
+	host string
+	port string
+}
+
+func newReplaceCommand() *replaceCommand {
+	c := &replaceCommand{}
+	c.cmd = &cobra.Command{Use: "replace TARGET_PATH FLOW_FILE", Short: "[control] replace and begin an existing flow.",
+		Long: "Replace a same-name Flow DefinitionDocument v1, preserving suspension. Active/submitted nodes prevent replacement. Success updates memory; periodic checkpoint is pending. Network failures are not retried; query the state.",
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.ExactArgs(2)(cmd, args); err != nil {
+				return common.NewExitError(common.ExitRequestError, err.Error())
+			}
+			return nil
+		}, RunE: c.runCommand}
+	c.cmd.Flags().StringVar(&c.host, "host", "", "takler service host")
+	c.cmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	return c
+}
+func (c *replaceCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(c.host, c.port)
+	if err != nil {
+		return err
+	}
+	response, err := client.RunCommandReplace(args[0], args[1])
+	if err != nil {
+		return err
+	}
+	if err := reportCommandResponse(response); err != nil {
+		return err
+	}
+	fmt.Println(response.GetMessage())
+	return nil
 }

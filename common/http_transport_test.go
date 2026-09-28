@@ -132,6 +132,18 @@ func newFakeHTTPServer(t *testing.T, opts ...fakeHTTPOption) *fakeHTTPServer {
 			payload = map[string]any{"flag": 0, "message": "success", "results": results}
 		}
 
+		if payload == nil {
+			switch envelope.Command {
+			case "ping":
+				payload = map[string]any{}
+			case "show":
+				payload = map[string]any{"output": ""}
+			case "coroutine":
+				payload = map[string]any{"coroutines": []any{}}
+			default:
+				payload = map[string]any{"flag": 0, "message": "success"}
+			}
+		}
 		if failCount < 0 || attempt <= failCount {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(failCode)
@@ -341,7 +353,7 @@ var httpCommandPayloads = []struct {
 }
 
 // TestHttpTransportEnvelopeShape pins the wire shape of every one of the
-// sixteen commands: the URL is the command endpoint, the envelope carries the
+// seventeen commands: the URL is the command endpoint, the envelope carries the
 // version, a fresh trace_id and the command name, and the payload is exactly
 // the literal contract table above.
 func TestHttpTransportEnvelopeShape(t *testing.T) {
@@ -478,7 +490,9 @@ func TestHttpTransportStatusClassification(t *testing.T) {
 		{code: 422, exitCode: ExitRequestError},
 		// Any other status is neither retryable nor a request error: the
 		// client never reached a usable takler answer, which is unreachable.
-		{code: 404, exitCode: ExitUnreachable},
+		{code: 404, exitCode: ExitRequestError},
+		{code: 405, exitCode: ExitRequestError},
+		{code: 415, exitCode: ExitRequestError},
 		{code: 501, exitCode: ExitUnreachable},
 	}
 
@@ -491,9 +505,12 @@ func TestHttpTransportStatusClassification(t *testing.T) {
 			_, err := client.RunCommandSuspend([]string{"/flow1"})
 
 			exitErr := retryRequireExitError(t, err, c.exitCode)
+			if strings.Contains(exitErr.Message, "fake server refuses") {
+				t.Fatal("untrusted error body echoed")
+			}
 			retryAssertMessageContains(
 				t, "the failure message", exitErr.Message,
-				"suspend", fmt.Sprintf("HTTP status %d", c.code), "fake server refuses",
+				"suspend", fmt.Sprintf("HTTP status %d", c.code),
 			)
 			if got := server.callCount(); got != 1 {
 				t.Errorf("the server received %d calls, want exactly 1: %d is not retried", got, c.code)
@@ -508,7 +525,7 @@ func TestHttpTransportStatusClassification(t *testing.T) {
 func TestHttpTransportRetriesRetryableStatus(t *testing.T) {
 	credCleanEnv(t)
 	server := newFakeHTTPServer(t, httpFailFirst(2, 503), httpWithPayloads(map[string]any{
-		"complete": map[string]any{"flag": 0, "message": ""},
+		"ping": map[string]any{},
 	}))
 	host, port := server.hostPort(t)
 
@@ -532,10 +549,10 @@ func TestHttpTransportRetriesRetryableStatus(t *testing.T) {
 	response, err := callWith(
 		client,
 		context.Background(),
-		"complete",
-		KindChild,
-		&pb.CompleteCommand{ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"}},
-		transport.RunCommandComplete,
+		"ping",
+		KindQuery,
+		&pb.PingRequest{},
+		transport.RunRequestPing,
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	if err != nil {
@@ -564,8 +581,8 @@ func TestHttpTransportRetriesRetryableStatus(t *testing.T) {
 	}
 	address := host + ":" + port
 	want := []string{
-		fmt.Sprintf("retry complete to %s: elapsed=0.0s, status=503", address),
-		fmt.Sprintf("retry complete to %s: elapsed=1.0s, status=503", address),
+		fmt.Sprintf("retry ping to %s: elapsed=0.0s, status=503", address),
+		fmt.Sprintf("retry ping to %s: elapsed=1.0s, status=503", address),
 	}
 	for i, w := range want {
 		if warnings[i] != w {
@@ -766,9 +783,11 @@ func TestHttpTransportTLS(t *testing.T) {
 		credCleanEnv(t)
 
 		tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var request httpEnvelope
+			_ = json.NewDecoder(r.Body).Decode(&request)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"version": "1", "trace_id": "t", "command": "ping", "payload": map[string]any{},
+				"version": "1", "trace_id": request.TraceID, "command": "ping", "payload": map[string]any{},
 			})
 		}))
 		t.Cleanup(tlsServer.Close)

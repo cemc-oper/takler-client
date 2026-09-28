@@ -57,14 +57,14 @@ func (c *TaklerServiceClient) RunCommandRun(nodePaths []string, force bool) (*pb
 // queued, submitted, active, aborted, clear, set): the string is translated
 // client side, exactly as the Python client's ForceState.Value does, so an
 // unknown name never reaches the server. The failure is reported with
-// ExitServerError, mirroring what that ValueError becomes on the Python side:
+// ExitRequestError, mirroring what that ValueError becomes on the Python side:
 // it is not a TaklerError, so it lands on the generic exception path of the
 // CLI's exit code mapping (requirement 15.5).
 func (c *TaklerServiceClient) RunCommandForce(nodePaths []string, state string, recursive bool) (*pb.BatchResponse, error) {
 	forceState, ok := pb.ForceCommand_ForceState_value[state]
 	if !ok {
 		return nil, NewExitError(
-			ExitServerError,
+			ExitRequestError,
 			fmt.Sprintf(
 				"invalid force state %q, want one of: unknown, complete, queued, submitted, active, aborted, clear, set",
 				state,
@@ -89,7 +89,7 @@ func (c *TaklerServiceClient) RunCommandFreeDep(nodePaths []string, depType stri
 	depTypeValue, ok := pb.FreeDepCommand_DepType_value[depType]
 	if !ok {
 		return nil, NewExitError(
-			ExitServerError,
+			ExitRequestError,
 			fmt.Sprintf(
 				"invalid dependency type %q, want one of: all, trigger, time",
 				depType,
@@ -108,14 +108,14 @@ func (c *TaklerServiceClient) RunCommandFreeDep(nodePaths []string, depType stri
 //
 // The file is read before the connection is opened, as the Python client's
 // run_command_load does, so an unreadable file fails without touching the
-// network. Its exit code is ExitServerError for the same reason an invalid
+// network. Its exit code is ExitRequestError for the same reason an invalid
 // force state is: the Python side raises FileNotFoundError, which is not a
 // TaklerError either and lands on the same generic path.
 func (c *TaklerServiceClient) RunCommandLoad(flowType string, flowFilePath string) (*pb.ServiceResponse, error) {
 	flow, err := os.ReadFile(flowFilePath)
 	if err != nil {
 		return nil, NewExitError(
-			ExitServerError,
+			ExitRequestError,
 			fmt.Sprintf("cannot read the flow file %s: %v", flowFilePath, err),
 		)
 	}
@@ -134,4 +134,12 @@ func (c *TaklerServiceClient) RunCommandBegin(flowName string, force bool) (*pb.
 		FlowName: flowName,
 		Force:    force,
 	}, Transport.RunCommandBegin)
+}
+
+func (c *TaklerServiceClient) RunCommandReplace(targetPath, flowFilePath string) (*pb.ServiceResponse, error) {
+	data, err := os.ReadFile(flowFilePath)
+	if err != nil {
+		return nil, NewExitError(ExitRequestError, "cannot read replacement definition file")
+	}
+	return CallCommand(c, "replace", KindControl, &pb.ReplaceCommand{TargetPath: targetPath, Flow: data}, Transport.RunCommandReplace)
 }

@@ -3,12 +3,15 @@ package common
 import (
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/grpc/codes"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestBatchMutationsNeverRetry(t *testing.T) {
+func TestAllMutationsNeverRetry(t *testing.T) {
 	for _, wire := range []string{"grpc", "http"} {
-		for _, name := range []string{"requeue", "suspend", "resume", "run", "force", "free-dep", "begin"} {
+		for _, name := range []string{"init", "complete", "abort", "event", "meter", "load", "replace", "requeue", "suspend", "resume", "run", "force", "free-dep", "begin"} {
 			t.Run(wire+"/"+name, func(t *testing.T) {
 				t.Setenv(EnvRetryWindow, "600")
 				var client *TaklerServiceClient
@@ -22,8 +25,26 @@ func TestBatchMutationsNeverRetry(t *testing.T) {
 					client = newHTTPClient(t, s)
 					count = s.callCount
 				}
+				definition := filepath.Join(t.TempDir(), "flow.json")
+				if err := os.WriteFile(definition, []byte("{}"), 0600); err != nil {
+					t.Fatal(err)
+				}
 				var err error
 				switch name {
+				case "init":
+					_, err = client.RunCommandInit("/f/a", "1")
+				case "complete":
+					_, err = client.RunCommandComplete("/f/a")
+				case "abort":
+					_, err = client.RunCommandAbort("/f/a", "")
+				case "event":
+					_, err = client.RunCommandEvent("/f/a", "e")
+				case "meter":
+					_, err = client.RunCommandMeter("/f/a", "m", "1")
+				case "load":
+					_, err = client.RunCommandLoad("json", definition)
+				case "replace":
+					_, err = client.RunCommandReplace("/f", definition)
 				case "requeue":
 					_, err = client.RunCommandRequeue([]string{"/f/a"})
 				case "suspend":
@@ -40,6 +61,9 @@ func TestBatchMutationsNeverRetry(t *testing.T) {
 					_, err = client.RunCommandBegin("f", false)
 				}
 				assertExitError(t, err, ExitUnreachable)
+				if !strings.Contains(err.Error(), "outcome unknown; query server state") {
+					t.Fatal(err)
+				}
 				if count() != 1 {
 					t.Fatalf("attempts=%d", count())
 				}

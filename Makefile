@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract replace-contract wire-check check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -57,8 +57,15 @@ http-contract:
 # check is what CI runs, and what to run locally before pushing. The CI workflow
 # invokes these same targets one per step, so that the failing step is visible in
 # the run summary while "make check" stays the single local entry point.
-check: vet fmt-check test cover-check proto-check
+check: vet fmt-check test cover-check proto-check wire-check
 
 # Both CLIs and both transports against the paired Python checkout.
 load-contract: all
 	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/load_contract.sh
+
+replace-contract: all
+	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/replace_contract.sh
+
+wire-check:
+	cmp common/wire_schema.json "$${TAKLER_REPO:-../takler}/src/takler/protocol/wire_schema.json"
+	cmp common/testdata/http_vectors.json "$${TAKLER_REPO:-../takler}/tests/protocol/fixtures/http_vectors.json"

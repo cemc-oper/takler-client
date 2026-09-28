@@ -55,8 +55,8 @@ func TestExitStatusForWrappedExitError(t *testing.T) {
 func TestExitStatusForPlainError(t *testing.T) {
 	code, message := exitStatusForError(errors.New("unknown flag: --nope"))
 
-	if code != common.ExitServerError {
-		t.Errorf("exit code: got %d, want %d", code, common.ExitServerError)
+	if code != common.ExitRequestError {
+		t.Errorf("exit code: got %d, want %d", code, common.ExitRequestError)
 	}
 	if message != "unknown flag: --nope" {
 		t.Errorf("message: got %q", message)

@@ -548,3 +548,13 @@ func (s *fakeServicer) batchCall(ctx context.Context, method string, request pro
 	}
 	return response, nil
 }
+
+func (s *fakeServicer) RunCommandReplace(ctx context.Context, req *pb.ReplaceCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandReplace", req)
+}
+func (s *fakeServicer) RunCommandMeter(ctx context.Context, req *pb.MeterCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandMeter", req)
+}
+func (s *fakeServicer) RunCommandEvent(ctx context.Context, req *pb.EventCommand) (*pb.ServiceResponse, error) {
+	return s.serviceCall(ctx, "RunCommandEvent", req)
+}

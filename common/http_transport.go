@@ -53,12 +53,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -105,18 +108,10 @@ var nonRetryableExitCodeByHTTPStatus = map[int]int{
 	401: ExitRequestError,
 	403: ExitRequestError,
 	422: ExitRequestError,
+	404: ExitRequestError,
+	405: ExitRequestError,
+	415: ExitRequestError,
 }
-
-// errorBodySnippetLength is how much of an unreadable error body goes into the
-// failure details: enough to identify what answered (a proxy's error page,
-// say), short enough for a single terminal line. Mirrors the Python client's
-// _ERROR_BODY_SNIPPET_LENGTH.
-const errorBodySnippetLength = 200
-
-// errorBodyReadLimit bounds how much of an error response body is read at all,
-// so a misbehaving proxy cannot make the client buffer an unbounded page for
-// the sake of a snippet.
-const errorBodyReadLimit = 64 * 1024
 
 // httpStatusError is one attempt answered with a non-200 HTTP status. It is an
 // internal carrier between the attempt and classifyHttpError: the retry loop
@@ -198,8 +193,10 @@ func (t *HttpTransport) Open() error {
 	t.baseURL = fmt.Sprintf("%s://%s:%s", scheme, t.host, t.port)
 	t.client = &http.Client{
 		Transport: &http.Transport{
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy: http.ProxyFromEnvironment,
+			// Fresh connections prevent net/http from replaying a request on a stale pooled socket.
+			DisableKeepAlives: true,
+			TLSClientConfig:   tlsConfig,
 		},
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -284,6 +281,22 @@ func classifyHttpError(err error) FailureVerdict {
 			Name:      "an invalid response envelope",
 			Details:   responseErr.err.Error(),
 		}
+	}
+
+	var cert *tls.CertificateVerificationError
+	var unknown x509.UnknownAuthorityError
+	var hostname x509.HostnameError
+	if errors.As(err, &cert) || errors.As(err, &unknown) || errors.As(err, &hostname) || tlsFailure(err.Error()) {
+		return FailureVerdict{ExitCode: ExitRequestError, Name: "TLS verification failed", Details: "TLS verification failed"}
+	}
+	var network net.Error
+	cause := err
+	var requestError *url.Error
+	if errors.As(err, &requestError) {
+		cause = requestError.Err
+	}
+	if !errors.As(cause, &network) && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return FailureVerdict{ExitCode: ExitRequestError, Name: "invalid transport configuration", Details: "request could not be sent"}
 	}
 
 	// Anything else is a connection-level failure of net/http: unreachable
@@ -406,44 +419,31 @@ func (t *HttpTransport) post(
 		}
 	}
 
-	var answer httpEnvelope
-	decoder := json.NewDecoder(response.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&answer); err != nil {
+	raw, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if !jsonContentType(response.Header.Get("Content-Type")) {
+		return nil, &httpResponseError{err: errors.New("invalid response content type")}
+	}
+	answer, err := decodeWire(raw, "response", command, traceID)
+	if err != nil {
+		return nil, &httpResponseError{err: errors.New("invalid response envelope or payload")}
+	}
+	encoded, err := json.Marshal(answer["payload"])
+	if err != nil {
 		return nil, &httpResponseError{err: err}
 	}
-	if isBatchCommand(command) && (answer.Command != command || answer.TraceID != traceID || answer.Version != ProtocolVersion) {
-		return nil, &httpResponseError{err: errors.New("batch envelope does not match request")}
-	}
-	if answer.Payload == nil {
-		return nil, &httpResponseError{err: errors.New("the envelope carries no payload")}
-	}
-	return answer.Payload, nil
+	return encoded, nil
 }
 
-// httpResponseDetails extracts the detail text of a non-200 response.
-//
-// The takler server answers a refusal as FastAPI's {"detail": "<text>"};
-// anything else answering (a reverse proxy's error page, a truncated body) is
-// quoted as a snippet. No content ever lands here that is not already on its
-// way into an error message, and the server's refusal texts are sanitized by
-// construction -- they name the reason, never a credential value.
+// httpResponseDetails never echoes an untrusted proxy or server error body.
 func httpResponseDetails(response *http.Response) string {
-	body, err := io.ReadAll(io.LimitReader(response.Body, errorBodyReadLimit))
-	if err == nil {
-		var parsed struct {
-			Detail string `json:"detail"`
-		}
-		if json.Unmarshal(body, &parsed) == nil && parsed.Detail != "" {
-			return parsed.Detail
-		}
-		snippet := string(body)
-		if len(snippet) > errorBodySnippetLength {
-			snippet = snippet[:errorBodySnippetLength]
-		}
-		return snippet
+	reasons := map[int]string{400: "URL and envelope command mismatch", 401: "authentication required", 403: "permission denied", 404: "route not found", 405: "method not allowed", 415: "expected application/json", 422: "invalid request envelope or payload"}
+	if reason, ok := reasons[response.StatusCode]; ok {
+		return reason
 	}
-	return "the error body could not be read"
+	return "HTTP request failed"
 }
 
 // serviceCall posts a command answering a ServiceResponse -- every child and
@@ -472,7 +472,7 @@ func (t *HttpTransport) serviceCall(
 	return &pb.ServiceResponse{Flag: body.Flag, Message: body.Message}, nil
 }
 
-// The sixteen command methods. Each builds the request DTO's JSON payload
+// The seventeen command methods. Each builds the request DTO's JSON payload
 // from the generated request message -- the field names are the DTO's, not
 // the proto's (the proto's ChildCommandOptions wrapper is flattened, the
 // enum-valued fields travel as their names, and LoadCommand's flow bytes are
@@ -635,4 +635,8 @@ func (t *HttpTransport) QueryCoroutine(ctx context.Context, req *pb.CoroutineReq
 		})
 	}
 	return response, nil
+}
+
+func (t *HttpTransport) RunCommandReplace(ctx context.Context, req *pb.ReplaceCommand) (*pb.ServiceResponse, error) {
+	return t.serviceCall(ctx, "replace", map[string]any{"target_path": req.GetTargetPath(), "flow_bytes": base64.StdEncoding.EncodeToString(req.GetFlow())})
 }

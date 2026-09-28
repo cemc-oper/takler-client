@@ -84,7 +84,7 @@ func (c *TaklerServiceClient) Credentials() *Credentials {
 // method is a request built and a response read inside this closure, so a
 // change to how the connection is made -- credentials, target spelling, a
 // future connection reuse -- is a change to one function rather than to
-// sixteen copies of the same three lines.
+// seventeen copies of the same three lines.
 func (c *TaklerServiceClient) withTransport(call func(transport Transport) error) error {
 	if err := c.transport.Open(); err != nil {
 		return err

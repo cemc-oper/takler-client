@@ -1,7 +1,7 @@
 // The Go half of the command surface drift guard.
 //
 // tests/client/test_cross_language_contract.py in the takler repository
-// restates, by hand, the same three tables: the sixteen RPCs with their
+// restates, by hand, the same three tables: the seventeen RPCs with their
 // request and response types, and the ForceState / DepType name to number
 // mappings. Both halves read the tables from their own generated code and
 // compare against the hand written contract, so a proto or enum change merged
@@ -21,7 +21,7 @@ import (
 )
 
 // contractRPCSurface is the RPC name -> (request, response) table of the
-// contract's sixteen commands. RunCommandResume taking its own ResumeCommand
+// contract's seventeen commands. RunCommandResume taking its own ResumeCommand
 // (rather than reusing SuspendCommand) and RunCommandBegin existing at all are
 // both pinned here.
 var contractRPCSurface = map[string][2]string{
@@ -37,6 +37,7 @@ var contractRPCSurface = map[string][2]string{
 	"RunCommandForce":    {"ForceCommand", "BatchResponse"},
 	"RunCommandFreeDep":  {"FreeDepCommand", "BatchResponse"},
 	"RunCommandLoad":     {"LoadCommand", "ServiceResponse"},
+	"RunCommandReplace":  {"ReplaceCommand", "ServiceResponse"},
 	"RunCommandBegin":    {"BeginCommand", "BatchResponse"},
 	"RunRequestShow":     {"ShowRequest", "ShowResponse"},
 	"RunRequestPing":     {"PingRequest", "PingResponse"},

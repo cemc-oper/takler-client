@@ -2,7 +2,7 @@
 //
 // Everything gRPC the client knows lives here: the target string, the
 // transport credentials, the connect / close pair, the generated stub the
-// sixteen command methods delegate to, and the classification of a failed
+// seventeen command methods delegate to, and the classification of a failed
 // attempt into the transport-neutral FailureVerdict of retry.go. The rest of
 // the client -- TaklerServiceClient, the Call_Wrapper, the command methods --
 // only sees the Transport interface of transport.go.
@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/grpc"
@@ -68,7 +69,7 @@ func (t *GrpcTransport) Open() error {
 		return err
 	}
 
-	conn, err := grpc.NewClient(t.getTarget(), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.NewClient(t.getTarget(), grpc.WithTransportCredentials(creds), grpc.WithDisableRetry(), grpc.WithDefaultCallOptions(grpc.MaxRetryRPCBufferSize(0)))
 	if err != nil {
 		return NewExitError(
 			ExitUnreachable,
@@ -140,6 +141,9 @@ func (t *GrpcTransport) Classify(err error) FailureVerdict {
 // tests are byte-identical after the extraction.
 func classifyGrpcError(err error) FailureVerdict {
 	code := status.Code(err)
+	if tlsFailure(status.Convert(err).Message()) {
+		return FailureVerdict{ExitCode: ExitRequestError, Name: "TLS verification failed", Details: "TLS verification failed"}
+	}
 	return FailureVerdict{
 		Retryable: IsRetryableStatus(code),
 		ExitCode:  ExitCodeForStatus(code),
@@ -149,7 +153,7 @@ func classifyGrpcError(err error) FailureVerdict {
 	}
 }
 
-// The sixteen command methods delegate to the generated stub bound to the
+// The seventeen command methods delegate to the generated stub bound to the
 // connection. Each is one line: the retry loop, the credentials and the error
 // mapping are the Call_Wrapper's, the request construction is the caller's.
 
@@ -215,4 +219,18 @@ func (t *GrpcTransport) RunRequestPing(ctx context.Context, req *pb.PingRequest)
 
 func (t *GrpcTransport) QueryCoroutine(ctx context.Context, req *pb.CoroutineRequest) (*pb.CoroutineResponse, error) {
 	return t.client.QueryCoroutine(ctx, req)
+}
+
+func (t *GrpcTransport) RunCommandReplace(ctx context.Context, req *pb.ReplaceCommand) (*pb.ServiceResponse, error) {
+	return t.client.RunCommandReplace(ctx, req)
+}
+
+func tlsFailure(message string) bool {
+	message = strings.ToLower(message)
+	for _, marker := range []string{"certificate verify failed", "certificate_verify_failed", "ssl handshake", "tls handshake", "peer name", "x509:"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }

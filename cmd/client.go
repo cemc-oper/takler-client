@@ -4,7 +4,7 @@
 // A command implementation is a RunE that resolves its own options, calls one
 // common method and returns. Everything else -- where the address comes from,
 // which security levels the client carries, how a response's Error_Code becomes
-// output or an exit code -- is here, once, so the sixteen commands cannot drift
+// output or an exit code -- is here, once, so the seventeen commands cannot drift
 // apart on any of it.
 //
 // Nothing in this file ends the process: a failure is an *ExitError returned up

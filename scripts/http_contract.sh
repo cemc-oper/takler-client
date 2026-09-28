@@ -191,7 +191,7 @@ expect_flag "event on an unknown node" 1 node_not_found \
 expect_flag "meter on an unknown node" 1 node_not_found \
     meter --node-path /flow1/no_such_task --meter-name meter_a --meter-value 5
 expect_flag "run on an unknown node" 1 node_not_found run /flow1/no_such_task
-expect_flag "unvalidated meter value" 3 internal_error \
+expect_flag "invalid wire meter value" 1 "HTTP status 422" \
     meter --node-path /flow1/container1/task1 --meter-name meter_a --meter-value abc
 
 # -- Unreachable server -------------------------------------------------------

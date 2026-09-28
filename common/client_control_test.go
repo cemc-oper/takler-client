@@ -107,7 +107,7 @@ func TestRunCommandForceRejectsAnUnknownState(t *testing.T) {
 
 	_, err := client.RunCommandForce([]string{"/flow1"}, "done", false)
 
-	assertExitError(t, err, ExitServerError, `"done"`, "complete")
+	assertExitError(t, err, ExitRequestError, `"done"`, "complete")
 	if got := server.callCount(); got != 0 {
 		t.Errorf("server received %d calls, want none", got)
 	}
@@ -137,7 +137,7 @@ func TestRunCommandFreeDepRejectsAnUnknownDepType(t *testing.T) {
 
 	_, err := client.RunCommandFreeDep([]string{"/flow1"}, "everything")
 
-	assertExitError(t, err, ExitServerError, `"everything"`, "all")
+	assertExitError(t, err, ExitRequestError, `"everything"`, "all")
 	if got := server.callCount(); got != 0 {
 		t.Errorf("server received %d calls, want none", got)
 	}
@@ -178,7 +178,7 @@ func TestRunCommandLoadReportsAnUnreadableFile(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "absent.json")
 	_, err := client.RunCommandLoad("json", missing)
 
-	assertExitError(t, err, ExitServerError, missing)
+	assertExitError(t, err, ExitRequestError, missing)
 	if got := server.callCount(); got != 0 {
 		t.Errorf("server received %d calls, want none", got)
 	}

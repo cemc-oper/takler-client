@@ -695,10 +695,10 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	response, err := callWith(
 		retryCallClient(),
 		context.Background(),
-		"complete",
-		KindChild,
-		&pb.CompleteCommand{ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"}},
-		grpcRPC(server.Client.RunCommandComplete),
+		"show",
+		KindQuery,
+		&pb.ShowRequest{},
+		grpcRPC(server.Client.RunRequestShow),
 		callSettings{policy: retryPolicyWithClock(window, clock), warn: &warn},
 	)
 	wallElapsed := time.Since(wallStart)
@@ -736,8 +736,8 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	}
 	if len(lines) >= 2 {
 		want := []string{
-			fmt.Sprintf("retry complete to %s: elapsed=0.0s, status=%v", retryCallAddress, codes.Unavailable),
-			fmt.Sprintf("retry complete to %s: elapsed=1.0s, status=%v", retryCallAddress, codes.Unavailable),
+			fmt.Sprintf("retry show to %s: elapsed=0.0s, status=%v", retryCallAddress, codes.Unavailable),
+			fmt.Sprintf("retry show to %s: elapsed=1.0s, status=%v", retryCallAddress, codes.Unavailable),
 		}
 		for i, w := range want {
 			if lines[i] != w {
@@ -748,7 +748,7 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	for i, line := range lines {
 		retryAssertMessageContains(
 			t, fmt.Sprintf("diagnostics line %d", i+1), line,
-			retryCallAddress, "complete", "elapsed=", codes.Unavailable.String(),
+			retryCallAddress, "show", "elapsed=", codes.Unavailable.String(),
 		)
 	}
 
@@ -778,13 +778,10 @@ func TestCallRetriesThenSucceeds(t *testing.T) {
 	response, err := callWith(
 		retryCallClient(),
 		context.Background(),
-		"init",
-		KindChild,
-		&pb.InitCommand{
-			ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
-			TaskId:       "job-1",
-		},
-		grpcRPC(server.Client.RunCommandInit),
+		"show",
+		KindQuery,
+		&pb.ShowRequest{},
+		grpcRPC(server.Client.RunRequestShow),
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	if err != nil {
@@ -792,12 +789,6 @@ func TestCallRetriesThenSucceeds(t *testing.T) {
 	}
 	if response == nil {
 		t.Fatal("response is nil, want the server's response")
-	}
-	if got := response.GetFlag(); got != 0 {
-		t.Errorf("flag = %d, want 0", got)
-	}
-	if got := response.GetMessage(); got != "queued" {
-		t.Errorf("message = %q, want %q", got, "queued")
 	}
 
 	if got := server.Servicer.callCount(); got != 3 {

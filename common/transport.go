@@ -63,7 +63,7 @@ const (
 //
 // The method set mirrors the generated pb.TaklerServerClient interface one
 // command method for one command method, minus the gRPC call options: the
-// whole point of the interface is that the sixteen call sites name their
+// whole point of the interface is that the seventeen call sites name their
 // command through it (a method expression such as Transport.RunCommandInit)
 // without the generated interface appearing at the call site at all.
 //
@@ -105,6 +105,7 @@ type Transport interface {
 	RunCommandForce(context.Context, *pb.ForceCommand) (*pb.BatchResponse, error)
 	RunCommandFreeDep(context.Context, *pb.FreeDepCommand) (*pb.BatchResponse, error)
 	RunCommandLoad(context.Context, *pb.LoadCommand) (*pb.ServiceResponse, error)
+	RunCommandReplace(context.Context, *pb.ReplaceCommand) (*pb.ServiceResponse, error)
 	RunCommandBegin(context.Context, *pb.BeginCommand) (*pb.BatchResponse, error)
 
 	// Query commands.

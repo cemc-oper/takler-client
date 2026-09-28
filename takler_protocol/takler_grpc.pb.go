@@ -30,6 +30,7 @@ const (
 	TaklerServer_RunCommandRun_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandRun"
 	TaklerServer_RunCommandForce_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandForce"
 	TaklerServer_RunCommandFreeDep_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandFreeDep"
+	TaklerServer_RunCommandReplace_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandReplace"
 	TaklerServer_RunCommandLoad_FullMethodName     = "/takler_protocol.TaklerServer/RunCommandLoad"
 	TaklerServer_RunCommandBegin_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandBegin"
 	TaklerServer_RunRequestShow_FullMethodName     = "/takler_protocol.TaklerServer/RunRequestShow"
@@ -53,6 +54,7 @@ type TaklerServerClient interface {
 	RunCommandRun(ctx context.Context, in *RunCommand, opts ...grpc.CallOption) (*BatchResponse, error)
 	RunCommandForce(ctx context.Context, in *ForceCommand, opts ...grpc.CallOption) (*BatchResponse, error)
 	RunCommandFreeDep(ctx context.Context, in *FreeDepCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandReplace(ctx context.Context, in *ReplaceCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandLoad(ctx context.Context, in *LoadCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*BatchResponse, error)
 	RunRequestShow(ctx context.Context, in *ShowRequest, opts ...grpc.CallOption) (*ShowResponse, error)
@@ -178,6 +180,16 @@ func (c *taklerServerClient) RunCommandFreeDep(ctx context.Context, in *FreeDepC
 	return out, nil
 }
 
+func (c *taklerServerClient) RunCommandReplace(ctx context.Context, in *ReplaceCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServiceResponse)
+	err := c.cc.Invoke(ctx, TaklerServer_RunCommandReplace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *taklerServerClient) RunCommandLoad(ctx context.Context, in *LoadCommand, opts ...grpc.CallOption) (*ServiceResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ServiceResponse)
@@ -244,6 +256,7 @@ type TaklerServerServer interface {
 	RunCommandRun(context.Context, *RunCommand) (*BatchResponse, error)
 	RunCommandForce(context.Context, *ForceCommand) (*BatchResponse, error)
 	RunCommandFreeDep(context.Context, *FreeDepCommand) (*BatchResponse, error)
+	RunCommandReplace(context.Context, *ReplaceCommand) (*ServiceResponse, error)
 	RunCommandLoad(context.Context, *LoadCommand) (*ServiceResponse, error)
 	RunCommandBegin(context.Context, *BeginCommand) (*BatchResponse, error)
 	RunRequestShow(context.Context, *ShowRequest) (*ShowResponse, error)
@@ -291,6 +304,9 @@ func (UnimplementedTaklerServerServer) RunCommandForce(context.Context, *ForceCo
 }
 func (UnimplementedTaklerServerServer) RunCommandFreeDep(context.Context, *FreeDepCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandFreeDep not implemented")
+}
+func (UnimplementedTaklerServerServer) RunCommandReplace(context.Context, *ReplaceCommand) (*ServiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunCommandReplace not implemented")
 }
 func (UnimplementedTaklerServerServer) RunCommandLoad(context.Context, *LoadCommand) (*ServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandLoad not implemented")
@@ -526,6 +542,24 @@ func _TaklerServer_RunCommandFreeDep_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaklerServer_RunCommandReplace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplaceCommand)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerServerServer).RunCommandReplace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerServer_RunCommandReplace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerServerServer).RunCommandReplace(ctx, req.(*ReplaceCommand))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TaklerServer_RunCommandLoad_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoadCommand)
 	if err := dec(in); err != nil {
@@ -666,6 +700,10 @@ var TaklerServer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RunCommandFreeDep",
 			Handler:    _TaklerServer_RunCommandFreeDep_Handler,
+		},
+		{
+			MethodName: "RunCommandReplace",
+			Handler:    _TaklerServer_RunCommandReplace_Handler,
 		},
 		{
 			MethodName: "RunCommandLoad",

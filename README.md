@@ -187,3 +187,25 @@ Run `begin FLOW_NAME` explicitly after a successful load.
 Run `TAKLER_REPO=../takler make load-contract` to validate Python and Go load CLIs
 over both gRPC and HTTP against the paired Python checkout (including rejection
 and exit codes). The Python checkout needs its locked development/HTTP dependencies.
+
+### Replace a flow
+
+```sh
+takler_client replace /forecast forecast.json
+make replace-contract
+```
+
+`replace TARGET_PATH FLOW_FILE` requires operator credentials and a UTF-8
+DefinitionDocument containing one Flow with the matching name. Server state and
+resource gates cannot be bypassed. Success says `flow replaced in memory;
+checkpoint pending`: persistence is asynchronous. Both gRPC and HTTP send all
+mutation commands (including child commands, load and replace) once. Only ping,
+show and coroutine may retry transient failures. After an ambiguous mutation
+failure, query server state before sending it again. TLS/configuration errors,
+malformed responses and business failures are never retried.
+
+HTTP requires complete typed envelopes and payloads, canonical base64 bytes and
+signed int64 decimal strings for meters. Invalid HTTP requests exit 1; malformed
+200 responses exit 3. `make check` also compares the shared wire schema and seed
+vectors with the paired Python checkout. `make replace-contract` exercises both
+CLIs and both transports against a real Python server.

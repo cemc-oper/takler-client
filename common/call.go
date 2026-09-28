@@ -45,7 +45,7 @@ import (
 // is what lets a call site name the command in one identifier: the receiver is
 // not known before the connection exists, so a method value would have to be
 // produced inside a closure, and that closure's signature would have to be
-// written out in full at every one of the sixteen call sites. The generated
+// written out in full at every one of the seventeen call sites. The generated
 // pb.TaklerServerClient interface no longer appears here at all -- the
 // transport behind the interface is the gRPC one today and the HTTP one of M3
 // task 10 tomorrow, and no call site can tell the difference. Both type
@@ -180,7 +180,7 @@ func callWith[Req any, Resp any](
 	if policy == nil {
 		policy = NewRetryPolicy(kind)
 	}
-	if isBatchCommand(name) {
+	if !readOnlyCommand(name) {
 		copy := *policy
 		copy.RetryWindow = 0
 		policy = &copy
@@ -205,7 +205,13 @@ func callWith[Req any, Resp any](
 		func() (Resp, error) {
 			return callOnce(callCtx, policy.Timeout(), req, invoke)
 		},
-		c.transport.Classify,
+		func(err error) FailureVerdict {
+			verdict := c.transport.Classify(err)
+			if !readOnlyCommand(name) && (verdict.Retryable || verdict.ExitCode != ExitRequestError) {
+				verdict.Name += "; outcome unknown; query server state before retrying"
+			}
+			return verdict
+		},
 	)
 }
 

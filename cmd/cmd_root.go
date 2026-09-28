@@ -42,6 +42,7 @@ func (b *commandsBuilder) addAll() *commandsBuilder {
 		newForceCommand(),
 		newFreeDepCommand(),
 		newLoadCommand(),
+		newReplaceCommand(),
 		newBeginCommand(),
 
 		// query
@@ -74,6 +75,10 @@ func newCommandsBuilder() *commandsBuilder {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
+
+	rootCommand.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return common.NewExitError(common.ExitRequestError, err.Error())
+	})
 
 	// The TLS and credential options are persistent flags of the root command,
 	// so every subcommand accepts them (requirements 13.4, 13.5, 13.11).
@@ -108,11 +113,8 @@ func exitStatusForError(err error) (int, string) {
 		return exitErr.Code, exitErr.Message
 	}
 
-	// Anything that is not an *ExitError did not come from the command path (a
-	// cobra argument or flag error, for instance). Report it with the most
-	// conservative failure code, the same reading unregistered Error_Codes get
-	// (requirement 15.3).
-	return common.ExitServerError, err.Error()
+	// Cobra argument, required flag and command errors are local request errors.
+	return common.ExitRequestError, err.Error()
 }
 
 type Command interface {
