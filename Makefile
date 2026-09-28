@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -58,3 +58,7 @@ http-contract:
 # invokes these same targets one per step, so that the failing step is visible in
 # the run summary while "make check" stays the single local entry point.
 check: vet fmt-check test cover-check proto-check
+
+# Both CLIs and both transports against the paired Python checkout.
+load-contract: all
+	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/load_contract.sh

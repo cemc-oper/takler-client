@@ -308,7 +308,7 @@ func newLoadCommand() *loadCommand {
 	loadCmd := &cobra.Command{
 		Use:   "load flow_file_path",
 		Short: "[control] load flow from file to server.",
-		Long:  "load flow from file to server",
+		Long:  "Load a single Flow DefinitionDocument v1. Existing names and legacy formats are rejected. Run begin explicitly after loading.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runCommand,
 	}

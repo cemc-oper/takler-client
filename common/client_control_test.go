@@ -148,7 +148,7 @@ func TestRunCommandLoadSendsTheFileBytes(t *testing.T) {
 	client, server := newTCPClient(t)
 
 	flowFile := filepath.Join(t.TempDir(), "flow1.json")
-	flowBytes := []byte(`{"name": "flow1"}`)
+	flowBytes := []byte(`{"kind":"takler.definition","schema_version":1,"root":{"type_id":"takler.flow","name":"flow1"}}`)
 	if err := os.WriteFile(flowFile, flowBytes, 0o600); err != nil {
 		t.Fatalf("write flow file: %v", err)
 	}

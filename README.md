@@ -44,7 +44,7 @@ scripts).
 | `run [--force] PATH...` | submit tasks manually |
 | `force STATE PATH...` | force a state (`unknown`..`aborted`) or set/clear an event (`PATH:EVENT` with `set`/`clear`); `--recursive` defaults to true |
 | `free-dep [--dep-type all\|time\|trigger] PATH...` | release dependencies |
-| `load [--flow-type json] FLOW_FILE` | load a flow definition |
+| `load [--flow-type json] FLOW_FILE` | load a new single Flow DefinitionDocument v1; rejects existing names; requires explicit begin |
 | `begin [FLOW_NAME]` | start the calendar (all flows when no name is given) |
 
 ## Query commands
@@ -177,3 +177,13 @@ prints its index, target, error classification and effect (`none`, `applied`,
 produces `batch_failed` (16), an error summary on stderr, and exit code 1.
 Both HTTP and gRPC make only one attempt for these mutations, regardless of
 `TAKLER_TIMEOUT`. A lost response can mean the operation already took effect.
+
+The load input is a single Flow `takler.definition` document with `schema_version: 1`,
+exported using Python `takler.serialization.export_definition(flow).model_dump_json()`.
+Load rejects existing names (`flow_state`, flag 14) and invalid or legacy documents
+(`invalid_request`, flag 15); both failures exit 1 and preserve the existing tree.
+Run `begin FLOW_NAME` explicitly after a successful load.
+
+Run `TAKLER_REPO=../takler make load-contract` to validate Python and Go load CLIs
+over both gRPC and HTTP against the paired Python checkout (including rejection
+and exit codes). The Python checkout needs its locked development/HTTP dependencies.

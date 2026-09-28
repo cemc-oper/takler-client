@@ -68,6 +68,7 @@ EOF
 # round trip a user's `takler-client-py load` performs.
 uv run --project "$TAKLER_REPO" python - "$WORK/flow1.json" <<'PY'
 import json
+from takler.serialization import export_definition
 import sys
 
 from takler.core import Flow
@@ -82,7 +83,7 @@ task2.add_trigger("./task1 == complete")
 flow.add_task("task3")
 
 with open(sys.argv[1], "w", encoding="utf-8") as f:
-    json.dump(flow.to_dict(), f)
+    json.dump(export_definition(flow).model_dump(mode="json"), f)
 PY
 
 # The server runs from a scratch directory so its checkpoint and log files
