@@ -35,6 +35,9 @@ TAKLER_REPO="$(cd "$TAKLER_REPO" && pwd)"
 BIN_PATH="$(cd "$BIN_PATH" && pwd)"
 BIN="$BIN_PATH/takler_client"
 
+echo "http contract: takler=$(git -C "$TAKLER_REPO" rev-parse HEAD) takler-client=$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse HEAD)"
+export NO_PROXY="127.0.0.1,localhost"
+export no_proxy="$NO_PROXY"
 WORK="$(mktemp -d)"
 SERVER_PID=""
 cleanup() {
@@ -48,9 +51,9 @@ trap cleanup EXIT
 
 # Two free ports, picked by the kernel. Keeping the ports in lockstep with the
 # connect config below is why they are generated here, not hardcoded.
-GRPC_PORT="$(uv run --project "$TAKLER_REPO" python -c \
+GRPC_PORT="$(uv run --locked --project "$TAKLER_REPO" python -c \
     'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
-HTTP_PORT="$(uv run --project "$TAKLER_REPO" python -c \
+HTTP_PORT="$(uv run --locked --project "$TAKLER_REPO" python -c \
     'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 
 cat > "$WORK/connect.yaml" <<EOF
@@ -66,7 +69,7 @@ EOF
 
 # The flow definition, built with the core API and serialized -- the same
 # round trip a user's `takler-client-py load` performs.
-uv run --project "$TAKLER_REPO" python - "$WORK/flow1.json" <<'PY'
+uv run --locked --project "$TAKLER_REPO" python - "$WORK/flow1.json" <<'PY'
 import json
 from takler.serialization import export_definition
 import sys
@@ -90,7 +93,7 @@ PY
 # stay out of the checkout. --extra http is what mounts the HTTP transport.
 (
     cd "$WORK"
-    uv run --extra http --project "$TAKLER_REPO" \
+    exec uv run --locked --extra http --project "$TAKLER_REPO" \
         takler-server --config "$WORK/connect.yaml" \
         > "$WORK/server.log" 2>&1
 ) &

@@ -13,7 +13,7 @@
 #                                 stubs differ from a fresh regeneration
 #
 # "make proto-sync" / "make proto-check" are thin wrappers; CI runs the check
-# mode so a proto change merged on only one side turns that side red.
+# mode against the explicitly selected peer; incompatible pairs fail.
 #
 # The takler repo location defaults to ../takler (the workspace layout) and
 # can be overridden:
@@ -41,6 +41,8 @@ if [[ ! -f "${source_proto}" ]]; then
     echo "proto: set TAKLER_REPO to a checkout of the takler repo" >&2
     exit 1
 fi
+
+echo "proto: takler=$(git -C "${takler_repo}" rev-parse HEAD) takler-client=$(git rev-parse HEAD)"
 
 gobin="$(go env GOBIN)"
 if [[ -z "${gobin}" ]]; then

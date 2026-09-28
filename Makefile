@@ -51,7 +51,7 @@ proto-check:
 # the script builds the server environment with uv and needs the binary built
 # (make all) first. It is not part of "make check" because it needs the
 # sibling repo; CI runs it as its own job.
-http-contract:
+http-contract: all
 	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/http_contract.sh
 
 # check is what CI runs, and what to run locally before pushing. The CI workflow

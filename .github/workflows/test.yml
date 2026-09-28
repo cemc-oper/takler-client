@@ -18,6 +18,13 @@ on:
   pull_request:
     branches: [ "main" ]
 
+  workflow_dispatch:
+    inputs:
+      peer_sha:
+        description: "Paired repository full commit SHA (empty uses main)"
+        type: string
+        default: ""
+
 permissions:
   contents: read
 
@@ -58,66 +65,71 @@ jobs:
         path: coverage.out
         if-no-files-found: warn
 
-  proto-drift:
-
-    name: proto drift check
-
+  paired-contract:
+    name: paired protocol and CLI contracts
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
-    # takler 仓的 `src/takler/server/protocol/takler.proto` 是协议的唯一事实来源，
-    # 漂移检查需要拿到它：检出到 `takler-src/`，经 TAKLER_REPO 传给脚本。
-    - name: Check out the takler repo (proto source of truth)
+      with:
+        path: takler-client
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Select peer revision
+      id: peer
+      env:
+        REQUESTED_SHA: ${{ inputs.peer_sha }}
+      run: |
+        peer_sha="$REQUESTED_SHA"
+        if [[ -n "$peer_sha" && ! "$peer_sha" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Peer revision must be a full lowercase commit SHA" >&2
+          exit 1
+        fi
+        echo "ref=${peer_sha:-main}" >> "$GITHUB_OUTPUT"
+        echo "sha=$peer_sha" >> "$GITHUB_OUTPUT"
+    - name: Check out paired repository
       uses: actions/checkout@v4
       with:
         repository: cemc-oper/takler
-        path: takler-src
-    - name: Set up Go
-      uses: actions/setup-go@v5
+        ref: ${{ steps.peer.outputs.ref }}
+        path: takler
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-go@v5
       with:
-        go-version-file: go.mod
-        cache-dependency-path: go.sum
-    # protoc 来自 takler 仓锁定的 uv 环境（dev 组的 grpcio-tools），脚本里以
-    # `uv run --project` 调用，因此这里只需装 uv 本身。
-    - name: Install uv
-      uses: astral-sh/setup-uv@v10.0.1
+        go-version-file: takler-client/go.mod
+        cache-dependency-path: takler-client/go.sum
+    - uses: astral-sh/setup-uv@v10.0.1
       with:
+        python-version: "3.11"
         enable-cache: true
-    # 两层校验：`takler_protocol/takler.proto` 与事实来源逐字节一致；生成代码重新
-    # 生成后 diff 为空。任一端 proto 落后都会让本 job 变红。
-    - name: Proto drift check
-      run: TAKLER_REPO="${{ github.workspace }}/takler-src" make proto-check
-
-  http-contract:
-
-    # HTTP 通道的跨语言契约测试（M3 任务 10）：对真实 takler 服务端的 HTTP 端口跑
-    # Go 客户端的全命令矩阵，逐条断言退出码与输出行（scripts/http_contract.sh）。
-    # 服务端来自 takler 仓的检出（与 proto-drift 同一模式），经 uv 以 http extra
-    # 启动；客户端是本仓构建出的二进制。
-
-    name: http contract
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Check out the takler repo (the server)
-      uses: actions/checkout@v4
-      with:
-        repository: cemc-oper/takler
-        path: takler-src
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-        cache-dependency-path: go.sum
-    - name: Build the client
-      run: make all
-    # 服务端由 takler 仓锁定的 uv 环境运行，这里只需装 uv 本身。
-    - name: Install uv
-      uses: astral-sh/setup-uv@v10.0.1
-      with:
-        enable-cache: true
-    - name: Run the HTTP command matrix against a real server
-      run: TAKLER_REPO="${{ github.workspace }}/takler-src" make http-contract
+        cache-dependency-glob: takler/uv.lock
+    - name: Record actual revisions
+      run: |
+        for repo in takler takler-client; do
+          revision="$(git -C "$repo" rev-parse HEAD)"
+          echo "$repo: $revision" | tee -a "$GITHUB_STEP_SUMMARY"
+        done
+    - name: Install locked Python dependencies
+      working-directory: takler
+      run: uv sync --locked --all-groups --extra http
+    - name: Check Python proto freshness and cross-repository drift
+      working-directory: takler
+      env:
+        TAKLER_CLIENT_REPO: ../takler-client
+      run: bash scripts/check_proto.sh
+    - name: Check Go proto and shared wire contracts
+      working-directory: takler-client
+      env:
+        TAKLER_REPO: ../takler
+      run: make proto-check wire-check
+    - name: Run HTTP command matrix
+      working-directory: takler-client
+      env:
+        TAKLER_REPO: ../takler
+      run: make http-contract
+    - name: Run both clients over gRPC and HTTP
+      working-directory: takler-client
+      env:
+        TAKLER_REPO: ../takler
+      run: make load-contract replace-contract show-contract
