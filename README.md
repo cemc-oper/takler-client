@@ -198,7 +198,20 @@ make replace-contract
 `replace TARGET_PATH FLOW_FILE` requires operator credentials and a UTF-8
 DefinitionDocument containing one Flow with the matching name. Server state and
 resource gates cannot be bypassed. Success says `flow replaced in memory;
-checkpoint pending`: persistence is asynchronous. Both gRPC and HTTP send all
+checkpoint pending`: persistence is asynchronous; a crash before the next
+checkpoint may lose the replacement. The target must be an existing Flow;
+active/submitted state on the Flow or any descendant, outstanding resource
+usage, or a changed target identity prevents replacement. Suspension does not
+bypass these checks. Success begins the new Flow and preserves only the old
+Flow's own suspended flag; descendant runtime progress is reset.
+
+R0 provides neither request deduplication nor exactly-once submission. Repeating
+replace initializes the Flow again. YAML, legacy mixed trees, checkpoints,
+query projections, Bunch roots and runtime fields are not accepted as load or
+replace definitions. Custom types must be registered by trusted server startup
+code; clients cannot request dynamic module imports.
+
+Both gRPC and HTTP send all
 mutation commands (including child commands, load and replace) once. Only ping,
 show and coroutine may retry transient failures. After an ambiguous mutation
 failure, query server state before sending it again. TLS/configuration errors,
@@ -258,3 +271,12 @@ Regular PR checks still use peer main; a manual candidate run does not replace
 required PR checks. Incompatible changes require coordinating merge order.
 After squash/rebase, use actual merged SHAs for replay. Manual dispatch requires
 the workflow to exist on the default branch; use local checks before initial rollout.
+
+## Job files and HPC execution
+
+New job files inherit filesystem default ACL/umask behavior; takler only adds
+owner execute. Existing files are written directly, and a failed write can leave
+partial content. Operators manage the trusted job directories and permissions.
+HPC scheduler interaction is provided by orvix through the configured submission
+command. The local submission process does not restrict jobs to local execution.
+`async_task` automatic scheduling is deferred to R1.
