@@ -1,5 +1,8 @@
 # takler-client
 
+![Maturity-Sandbox](https://img.shields.io/badge/Maturity-Sandbox-F9D71C)
+![ci](https://github.com/cemc-oper/takler-client/actions/workflows/ci.yml/badge.svg)
+
 A command line client tool for [takler](https://github.com/cemc-oper/takler).
 
 `takler_client` talks to a running `takler-server`: it reports job lifecycle

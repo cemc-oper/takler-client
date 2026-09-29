@@ -10,7 +10,7 @@
 # Go 版本跟随 `go.mod` 的 `go` 指令：`setup-go` 的 `go-version-file` 从该文件读取，
 # 免得两处版本号各自漂移。
 
-name: test
+name: ci
 
 on:
   push:
@@ -31,7 +31,7 @@ permissions:
 jobs:
   build:
 
-    name: test (Go)
+    name: ci (Go)
 
     runs-on: ubuntu-latest
 
