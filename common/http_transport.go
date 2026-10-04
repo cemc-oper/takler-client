@@ -482,28 +482,33 @@ func (t *HttpTransport) serviceCall(
 
 func (t *HttpTransport) RunCommandInit(ctx context.Context, req *pb.InitCommand) (*pb.ServiceResponse, error) {
 	return t.serviceCall(ctx, "init", map[string]any{
-		"node_path": req.GetChildOptions().GetNodePath(),
-		"task_id":   req.GetTaskId(),
+		"node_path":  req.GetChildOptions().GetNodePath(),
+		"attempt_id": req.GetChildOptions().GetAttemptId(),
+		"task_id":    req.GetTaskId(),
 	})
 }
 
 func (t *HttpTransport) RunCommandComplete(ctx context.Context, req *pb.CompleteCommand) (*pb.ServiceResponse, error) {
 	return t.serviceCall(ctx, "complete", map[string]any{
-		"node_path": req.GetChildOptions().GetNodePath(),
+		"node_path":  req.GetChildOptions().GetNodePath(),
+		"attempt_id": req.GetChildOptions().GetAttemptId(),
 	})
 }
 
 func (t *HttpTransport) RunCommandAbort(ctx context.Context, req *pb.AbortCommand) (*pb.ServiceResponse, error) {
 	return t.serviceCall(ctx, "abort", map[string]any{
-		"node_path": req.GetChildOptions().GetNodePath(),
-		"reason":    req.GetReason(),
+		"node_path":  req.GetChildOptions().GetNodePath(),
+		"attempt_id": req.GetChildOptions().GetAttemptId(),
+		"reason":     req.GetReason(),
 	})
 }
 
 func (t *HttpTransport) RunCommandEvent(ctx context.Context, req *pb.EventCommand) (*pb.ServiceResponse, error) {
 	return t.serviceCall(ctx, "event", map[string]any{
-		"node_path":  req.GetChildOptions().GetNodePath(),
-		"event_name": req.GetEventName(),
+		"node_path":        req.GetChildOptions().GetNodePath(),
+		"attempt_id":       req.GetChildOptions().GetAttemptId(),
+		"source_task_path": req.GetChildOptions().GetSourceTaskPath(),
+		"event_name":       req.GetEventName(),
 	})
 }
 
@@ -512,9 +517,11 @@ func (t *HttpTransport) RunCommandMeter(ctx context.Context, req *pb.MeterComman
 	// it, and validating here would diverge the two clients (see the module
 	// docstring).
 	return t.serviceCall(ctx, "meter", map[string]any{
-		"node_path":   req.GetChildOptions().GetNodePath(),
-		"meter_name":  req.GetMeterName(),
-		"meter_value": req.GetMeterValue(),
+		"node_path":        req.GetChildOptions().GetNodePath(),
+		"attempt_id":       req.GetChildOptions().GetAttemptId(),
+		"source_task_path": req.GetChildOptions().GetSourceTaskPath(),
+		"meter_name":       req.GetMeterName(),
+		"meter_value":      req.GetMeterValue(),
 	})
 }
 

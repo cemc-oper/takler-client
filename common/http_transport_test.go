@@ -219,33 +219,33 @@ var httpCommandPayloads = []struct {
 	payload map[string]any
 	call    func(t Transport) error
 }{
-	{"init", map[string]any{"node_path": "/flow1/task1", "task_id": "job-1"},
+	{"init", map[string]any{"node_path": "/flow1/task1", "attempt_id": testAttemptID, "task_id": "job-1"},
 		func(tr Transport) error {
 			_, err := tr.RunCommandInit(context.Background(), &pb.InitCommand{
-				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
+				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1", AttemptId: testAttemptID, SourceTaskPath: "/flow1/task1"},
 				TaskId:       "job-1",
 			})
 			return err
 		}},
-	{"complete", map[string]any{"node_path": "/flow1/task1"},
+	{"complete", map[string]any{"node_path": "/flow1/task1", "attempt_id": testAttemptID},
 		func(tr Transport) error {
 			_, err := tr.RunCommandComplete(context.Background(), &pb.CompleteCommand{
-				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
+				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1", AttemptId: testAttemptID, SourceTaskPath: "/flow1/task1"},
 			})
 			return err
 		}},
-	{"abort", map[string]any{"node_path": "/flow1/task1", "reason": "boom"},
+	{"abort", map[string]any{"node_path": "/flow1/task1", "attempt_id": testAttemptID, "reason": "boom"},
 		func(tr Transport) error {
 			_, err := tr.RunCommandAbort(context.Background(), &pb.AbortCommand{
-				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
+				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1", AttemptId: testAttemptID, SourceTaskPath: "/flow1/task1"},
 				Reason:       "boom",
 			})
 			return err
 		}},
-	{"event", map[string]any{"node_path": "/flow1/task1", "event_name": "data_ready"},
+	{"event", map[string]any{"node_path": "/flow1/task1", "attempt_id": testAttemptID, "source_task_path": "/flow1/task1", "event_name": "data_ready"},
 		func(tr Transport) error {
 			_, err := tr.RunCommandEvent(context.Background(), &pb.EventCommand{
-				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
+				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1", AttemptId: testAttemptID, SourceTaskPath: "/flow1/task1"},
 				EventName:    "data_ready",
 			})
 			return err
@@ -253,10 +253,10 @@ var httpCommandPayloads = []struct {
 	// meter_value is the string the caller passed, verbatim: "abc" must cross
 	// the wire unvalidated, so the server answers both clients with the same
 	// flag for the same malformed request.
-	{"meter", map[string]any{"node_path": "/flow1/task1", "meter_name": "progress", "meter_value": "abc"},
+	{"meter", map[string]any{"node_path": "/flow1/task1", "attempt_id": testAttemptID, "source_task_path": "/flow1/task1", "meter_name": "progress", "meter_value": "abc"},
 		func(tr Transport) error {
 			_, err := tr.RunCommandMeter(context.Background(), &pb.MeterCommand{
-				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1"},
+				ChildOptions: &pb.ChildCommandOptions{NodePath: "/flow1/task1", AttemptId: testAttemptID, SourceTaskPath: "/flow1/task1"},
 				MeterName:    "progress",
 				MeterValue:   "abc",
 			})
@@ -413,7 +413,7 @@ func TestHttpTransportCredentialHeaders(t *testing.T) {
 		client := newHTTPClient(t, server)
 		t.Setenv(EnvJobPassword, credPasswordValue)
 
-		if _, err := client.RunCommandInit("/flow1/task1", "job-1"); err != nil {
+		if _, err := client.RunCommandInit("/flow1/task1", "job-1", testAttemptID); err != nil {
 			t.Fatalf("init: %v", err)
 		}
 
@@ -458,7 +458,7 @@ func TestHttpTransportBusinessFailureIsNotAnError(t *testing.T) {
 	}))
 	client := newHTTPClient(t, server)
 
-	response, err := client.RunCommandComplete("/flow1/task1")
+	response, err := client.RunCommandComplete("/flow1/task1", testAttemptID)
 	if err != nil {
 		t.Fatalf("complete: %v, want the response carrying flag 43", err)
 	}
@@ -605,7 +605,7 @@ func TestHttpTransportConnectionErrorIsRetryable(t *testing.T) {
 		t.Fatalf("build the client: %v", err)
 	}
 
-	_, err = client.RunCommandComplete("/flow1/task1")
+	_, err = client.RunCommandComplete("/flow1/task1", testAttemptID)
 
 	exitErr := retryRequireExitError(t, err, ExitUnreachable)
 	retryAssertMessageContains(

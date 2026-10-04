@@ -121,6 +121,7 @@ func clearNoTakler(t *testing.T) {
 // printed its own diagnostics line first, which is what says the failure came
 // from the call rather than from building the client (requirements 13.12, 15.9).
 func TestEveryCommandReportsUnusableCaCertificate(t *testing.T) {
+	t.Setenv(TaklerAttemptID, "123e4567-e89b-42d3-a456-426614174000")
 	for name, run := range commandRunners() {
 		t.Run(name, func(t *testing.T) {
 			clearNoTakler(t)
@@ -152,6 +153,7 @@ func TestEveryCommandReportsUnusableCaCertificate(t *testing.T) {
 // A connect config that cannot be loaded fails while the client is being built,
 // which every command must report rather than continue past (requirement 15.9).
 func TestEveryCommandReportsUnusableConnectConfig(t *testing.T) {
+	t.Setenv(TaklerAttemptID, "123e4567-e89b-42d3-a456-426614174000")
 	for name, run := range commandRunners() {
 		t.Run(name, func(t *testing.T) {
 			clearNoTakler(t)
@@ -183,6 +185,7 @@ func TestEveryCommandReportsUnusableConnectConfig(t *testing.T) {
 // with it the request, must carry the environment's node path.
 func TestChildCommandUsesNodePathFromEnvironment(t *testing.T) {
 	clearNoTakler(t)
+	t.Setenv(TaklerAttemptID, "123e4567-e89b-42d3-a456-426614174000")
 	t.Setenv(TaklerName, "/flow1/family1/task1")
 	t.Setenv(common.TaklerTlsCaFile, filepath.Join(t.TempDir(), "absent-ca.crt"))
 

@@ -77,23 +77,23 @@ func TestCommandMethodsReturnTheCallWrapperError(t *testing.T) {
 		call func(*TaklerServiceClient) error
 	}{
 		{"init", func(c *TaklerServiceClient) error {
-			_, err := c.RunCommandInit("/flow1/task1", "job-1")
+			_, err := c.RunCommandInit("/flow1/task1", "job-1", testAttemptID)
 			return err
 		}},
 		{"complete", func(c *TaklerServiceClient) error {
-			_, err := c.RunCommandComplete("/flow1/task1")
+			_, err := c.RunCommandComplete("/flow1/task1", testAttemptID)
 			return err
 		}},
 		{"abort", func(c *TaklerServiceClient) error {
-			_, err := c.RunCommandAbort("/flow1/task1", "because")
+			_, err := c.RunCommandAbort("/flow1/task1", "because", testAttemptID)
 			return err
 		}},
 		{"event", func(c *TaklerServiceClient) error {
-			_, err := c.RunCommandEvent("/flow1/task1", "ready")
+			_, err := c.RunCommandEvent("/flow1/task1", "ready", testAttemptID, "/flow1/task1")
 			return err
 		}},
 		{"meter", func(c *TaklerServiceClient) error {
-			_, err := c.RunCommandMeter("/flow1/task1", "step", "10")
+			_, err := c.RunCommandMeter("/flow1/task1", "step", "10", testAttemptID, "/flow1/task1")
 			return err
 		}},
 		{"requeue", func(c *TaklerServiceClient) error {

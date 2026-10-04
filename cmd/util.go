@@ -12,6 +12,7 @@ const (
 	TaklerHost        = "TAKLER_HOST"
 	TaklerPort        = "TAKLER_PORT"
 	TaklerName        = "TAKLER_NAME"
+	TaklerAttemptID   = "TAKLER_ATTEMPT_ID"
 	TaklerConnectFile = "TAKLER_CONNECT_FILE"
 	DefaultHost       = "localhost"
 	DefaultPort       = "33083"
@@ -210,4 +211,21 @@ func getNodePath(nodePath string) string {
 		return nodePath
 	}
 	return ""
+}
+
+func getAttemptID(value string) string {
+	if value != "" {
+		return value
+	}
+	return os.Getenv(TaklerAttemptID)
+}
+
+func getSourceTaskPath(value, target string) string {
+	if value != "" {
+		return value
+	}
+	if source := os.Getenv(TaklerName); source != "" {
+		return source
+	}
+	return target
 }

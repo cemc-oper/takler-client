@@ -45,6 +45,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const testAttemptID = "123e4567-e89b-42d3-a456-426614174000"
+
 // fakeBufferSize is the bufconn buffer size. 1 MiB dwarfs every message this
 // service exchanges, so a slow reader can never turn into a deadlock inside a
 // test.

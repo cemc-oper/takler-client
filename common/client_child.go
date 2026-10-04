@@ -12,8 +12,27 @@
 package common
 
 import (
+	"regexp"
+
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
+
+var attemptPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// ValidateAttemptID rejects missing or non-canonical UUIDs before a child call.
+func ValidateAttemptID(value string) error {
+	if !attemptPattern.MatchString(value) {
+		return NewExitError(ExitRequestError, "invalid or missing attempt_id")
+	}
+	return nil
+}
+
+func childOptions(nodePath, attemptID, source string) (*pb.ChildCommandOptions, error) {
+	if err := ValidateAttemptID(attemptID); err != nil {
+		return nil, err
+	}
+	return &pb.ChildCommandOptions{NodePath: nodePath, AttemptId: attemptID, SourceTaskPath: source}, nil
+}
 
 // RunCommandInit reports that the task at nodePath has started, under the job
 // identity taskId.
@@ -21,53 +40,68 @@ import (
 // The returned response is the server's, flag included: a non zero flag is a
 // business failure the caller turns into an exit code, not an error of the call
 // (requirement 14.8).
-func (c *TaklerServiceClient) RunCommandInit(nodePath string, taskId string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandInit(nodePath string, taskId string, attemptID string) (*pb.ServiceResponse, error) {
+	options, err := childOptions(nodePath, attemptID, "")
+	if err != nil {
+		return nil, err
+	}
 	return CallCommand(c, "init", KindChild, &pb.InitCommand{
-		ChildOptions: &pb.ChildCommandOptions{
-			NodePath: nodePath,
-		},
-		TaskId: taskId,
+		ChildOptions: options,
+		TaskId:       taskId,
 	}, Transport.RunCommandInit)
 }
 
 // RunCommandComplete reports that the task at nodePath finished successfully.
-func (c *TaklerServiceClient) RunCommandComplete(nodePath string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandComplete(nodePath string, attemptID string) (*pb.ServiceResponse, error) {
+	options, err := childOptions(nodePath, attemptID, "")
+	if err != nil {
+		return nil, err
+	}
 	return CallCommand(c, "complete", KindChild, &pb.CompleteCommand{
-		ChildOptions: &pb.ChildCommandOptions{
-			NodePath: nodePath,
-		},
+		ChildOptions: options,
 	}, Transport.RunCommandComplete)
 }
 
 // RunCommandAbort reports that the task at nodePath failed, with reason as the
 // text shown to an operator.
-func (c *TaklerServiceClient) RunCommandAbort(nodePath string, reason string) (*pb.ServiceResponse, error) {
+func (c *TaklerServiceClient) RunCommandAbort(nodePath string, reason string, attemptID string) (*pb.ServiceResponse, error) {
+	options, err := childOptions(nodePath, attemptID, "")
+	if err != nil {
+		return nil, err
+	}
 	return CallCommand(c, "abort", KindChild, &pb.AbortCommand{
-		ChildOptions: &pb.ChildCommandOptions{
-			NodePath: nodePath,
-		},
-		Reason: reason,
+		ChildOptions: options,
+		Reason:       reason,
 	}, Transport.RunCommandAbort)
 }
 
-// RunCommandEvent sets the event eventName of the task at nodePath.
-func (c *TaklerServiceClient) RunCommandEvent(nodePath string, eventName string) (*pb.ServiceResponse, error) {
+// RunCommandEvent sets an event on nodePath on behalf of sourceTaskPath.
+func (c *TaklerServiceClient) RunCommandEvent(nodePath string, eventName string, attemptID string, sourceTaskPath string) (*pb.ServiceResponse, error) {
+	if sourceTaskPath == "" {
+		sourceTaskPath = nodePath
+	}
+	options, err := childOptions(nodePath, attemptID, sourceTaskPath)
+	if err != nil {
+		return nil, err
+	}
 	return CallCommand(c, "event", KindChild, &pb.EventCommand{
-		ChildOptions: &pb.ChildCommandOptions{
-			NodePath: nodePath,
-		},
-		EventName: eventName,
+		ChildOptions: options,
+		EventName:    eventName,
 	}, Transport.RunCommandEvent)
 }
 
-// RunCommandMeter sets the meter meterName of the task at nodePath to
-// meterValue.
-func (c *TaklerServiceClient) RunCommandMeter(nodePath string, meterName string, meterValue string) (*pb.ServiceResponse, error) {
+// RunCommandMeter sets a meter on nodePath on behalf of sourceTaskPath.
+func (c *TaklerServiceClient) RunCommandMeter(nodePath string, meterName string, meterValue string, attemptID string, sourceTaskPath string) (*pb.ServiceResponse, error) {
+	if sourceTaskPath == "" {
+		sourceTaskPath = nodePath
+	}
+	options, err := childOptions(nodePath, attemptID, sourceTaskPath)
+	if err != nil {
+		return nil, err
+	}
 	return CallCommand(c, "meter", KindChild, &pb.MeterCommand{
-		ChildOptions: &pb.ChildCommandOptions{
-			NodePath: nodePath,
-		},
-		MeterName:  meterName,
-		MeterValue: meterValue,
+		ChildOptions: options,
+		MeterName:    meterName,
+		MeterValue:   meterValue,
 	}, Transport.RunCommandMeter)
 }

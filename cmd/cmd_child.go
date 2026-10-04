@@ -9,6 +9,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cemc-oper/takler-client/common"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,9 +18,11 @@ type ChildCommand struct {
 	BaseCommand
 
 	childOptions struct {
-		host     string
-		port     string
-		nodePath string
+		host           string
+		port           string
+		nodePath       string
+		attemptID      string
+		sourceTaskPath string
 	}
 }
 
@@ -50,6 +54,7 @@ func newInitCommand() *initCommand {
 	initCmd.Flags().StringVar(&c.childOptions.host, "host", "", "takler service host")
 	initCmd.Flags().StringVar(&c.childOptions.port, "port", "", "takler service port")
 	initCmd.Flags().StringVar(&c.childOptions.nodePath, "node-path", "", "node path")
+	initCmd.Flags().StringVar(&c.childOptions.attemptID, "attempt-id", "", "current task attempt UUID")
 	initCmd.Flags().StringVar(&c.taskId, "task-id", "", "task id")
 	initCmd.MarkFlagRequired("task-id")
 
@@ -63,16 +68,20 @@ func (mc *initCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	attemptID := getAttemptID(mc.childOptions.attemptID)
+	if err := common.ValidateAttemptID(attemptID); err != nil {
+		return err
+	}
+	nodePath := getNodePath(mc.childOptions.nodePath)
+
 	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
 	if err != nil {
 		return err
 	}
-
-	nodePath := getNodePath(mc.childOptions.nodePath)
 	taskId := mc.taskId
 	fmt.Printf("%s:%s init %s with %s\n", client.Host, client.Port, nodePath, taskId)
 
-	response, err := client.RunCommandInit(nodePath, taskId)
+	response, err := client.RunCommandInit(nodePath, taskId, attemptID)
 	if err != nil {
 		return err
 	}
@@ -100,6 +109,7 @@ func newCompleteCommand() *completeCommand {
 	completeCmd.Flags().StringVar(&c.childOptions.host, "host", "", "takler service host")
 	completeCmd.Flags().StringVar(&c.childOptions.port, "port", "", "takler service port")
 	completeCmd.Flags().StringVar(&c.childOptions.nodePath, "node-path", "", "node path")
+	completeCmd.Flags().StringVar(&c.childOptions.attemptID, "attempt-id", "", "current task attempt UUID")
 
 	c.cmd = completeCmd
 	return c
@@ -111,15 +121,19 @@ func (mc *completeCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	attemptID := getAttemptID(mc.childOptions.attemptID)
+	if err := common.ValidateAttemptID(attemptID); err != nil {
+		return err
+	}
+	nodePath := getNodePath(mc.childOptions.nodePath)
+
 	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
 	if err != nil {
 		return err
 	}
-
-	nodePath := getNodePath(mc.childOptions.nodePath)
 	fmt.Printf("%s:%s complete %s\n", client.Host, client.Port, nodePath)
 
-	response, err := client.RunCommandComplete(nodePath)
+	response, err := client.RunCommandComplete(nodePath, attemptID)
 	if err != nil {
 		return err
 	}
@@ -149,6 +163,7 @@ func newAbortCommand() *abortCommand {
 	abortCmd.Flags().StringVar(&c.childOptions.host, "host", "", "takler service host")
 	abortCmd.Flags().StringVar(&c.childOptions.port, "port", "", "takler service port")
 	abortCmd.Flags().StringVar(&c.childOptions.nodePath, "node-path", "", "node path")
+	abortCmd.Flags().StringVar(&c.childOptions.attemptID, "attempt-id", "", "current task attempt UUID")
 	abortCmd.Flags().StringVar(&c.reason, "reason", "", "abort reason")
 
 	c.cmd = abortCmd
@@ -161,16 +176,20 @@ func (mc *abortCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	attemptID := getAttemptID(mc.childOptions.attemptID)
+	if err := common.ValidateAttemptID(attemptID); err != nil {
+		return err
+	}
+	nodePath := getNodePath(mc.childOptions.nodePath)
+
 	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
 	if err != nil {
 		return err
 	}
-
-	nodePath := getNodePath(mc.childOptions.nodePath)
 	reason := mc.reason
 	fmt.Printf("%s:%s abort %s: %s\n", client.Host, client.Port, nodePath, reason)
 
-	response, err := client.RunCommandAbort(nodePath, reason)
+	response, err := client.RunCommandAbort(nodePath, reason, attemptID)
 	if err != nil {
 		return err
 	}
@@ -200,6 +219,8 @@ func newEventCommand() *eventCommand {
 	eventCmd.Flags().StringVar(&c.childOptions.host, "host", "", "takler service host")
 	eventCmd.Flags().StringVar(&c.childOptions.port, "port", "", "takler service port")
 	eventCmd.Flags().StringVar(&c.childOptions.nodePath, "node-path", "", "node path")
+	eventCmd.Flags().StringVar(&c.childOptions.attemptID, "attempt-id", "", "current task attempt UUID")
+	eventCmd.Flags().StringVar(&c.childOptions.sourceTaskPath, "source-task-path", "", "reporting task path (defaults to TAKLER_NAME)")
 	eventCmd.Flags().StringVar(&c.eventName, "event-name", "", "event name")
 	eventCmd.MarkFlagRequired("event-name")
 
@@ -213,16 +234,21 @@ func (mc *eventCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	attemptID := getAttemptID(mc.childOptions.attemptID)
+	if err := common.ValidateAttemptID(attemptID); err != nil {
+		return err
+	}
+	nodePath := getNodePath(mc.childOptions.nodePath)
+
 	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
 	if err != nil {
 		return err
 	}
-
-	nodePath := getNodePath(mc.childOptions.nodePath)
+	sourceTaskPath := getSourceTaskPath(mc.childOptions.sourceTaskPath, nodePath)
 	eventName := mc.eventName
 	fmt.Printf("%s:%s event %s: %s\n", client.Host, client.Port, nodePath, eventName)
 
-	response, err := client.RunCommandEvent(nodePath, eventName)
+	response, err := client.RunCommandEvent(nodePath, eventName, attemptID, sourceTaskPath)
 	if err != nil {
 		return err
 	}
@@ -253,6 +279,8 @@ func newMeterCommand() *meterCommand {
 	meterCmd.Flags().StringVar(&c.childOptions.host, "host", "", "takler service host")
 	meterCmd.Flags().StringVar(&c.childOptions.port, "port", "", "takler service port")
 	meterCmd.Flags().StringVar(&c.childOptions.nodePath, "node-path", "", "node path")
+	meterCmd.Flags().StringVar(&c.childOptions.attemptID, "attempt-id", "", "current task attempt UUID")
+	meterCmd.Flags().StringVar(&c.childOptions.sourceTaskPath, "source-task-path", "", "reporting task path (defaults to TAKLER_NAME)")
 	meterCmd.Flags().StringVar(&c.meterName, "meter-name", "", "meter name")
 	meterCmd.Flags().StringVar(&c.meterValue, "meter-value", "", "meter value")
 	meterCmd.MarkFlagRequired("meter-name")
@@ -268,12 +296,17 @@ func (mc *meterCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	attemptID := getAttemptID(mc.childOptions.attemptID)
+	if err := common.ValidateAttemptID(attemptID); err != nil {
+		return err
+	}
+	nodePath := getNodePath(mc.childOptions.nodePath)
+
 	client, err := newClient(mc.childOptions.host, mc.childOptions.port)
 	if err != nil {
 		return err
 	}
-
-	nodePath := getNodePath(mc.childOptions.nodePath)
+	sourceTaskPath := getSourceTaskPath(mc.childOptions.sourceTaskPath, nodePath)
 	meterName := mc.meterName
 	meterValue := mc.meterValue
 	fmt.Printf(
@@ -281,7 +314,7 @@ func (mc *meterCommand) runCommand(cmd *cobra.Command, args []string) error {
 		client.Host, client.Port, nodePath, meterName, meterValue,
 	)
 
-	response, err := client.RunCommandMeter(nodePath, meterName, meterValue)
+	response, err := client.RunCommandMeter(nodePath, meterName, meterValue, attemptID, sourceTaskPath)
 	if err != nil {
 		return err
 	}

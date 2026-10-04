@@ -32,15 +32,15 @@ func TestAllMutationsNeverRetry(t *testing.T) {
 				var err error
 				switch name {
 				case "init":
-					_, err = client.RunCommandInit("/f/a", "1")
+					_, err = client.RunCommandInit("/f/a", "1", testAttemptID)
 				case "complete":
-					_, err = client.RunCommandComplete("/f/a")
+					_, err = client.RunCommandComplete("/f/a", testAttemptID)
 				case "abort":
-					_, err = client.RunCommandAbort("/f/a", "")
+					_, err = client.RunCommandAbort("/f/a", "", testAttemptID)
 				case "event":
-					_, err = client.RunCommandEvent("/f/a", "e")
+					_, err = client.RunCommandEvent("/f/a", "e", testAttemptID, "/f/a")
 				case "meter":
-					_, err = client.RunCommandMeter("/f/a", "m", "1")
+					_, err = client.RunCommandMeter("/f/a", "m", "1", testAttemptID, "/f/a")
 				case "load":
 					_, err = client.RunCommandLoad("json", definition)
 				case "replace":
