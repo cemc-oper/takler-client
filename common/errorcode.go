@@ -40,6 +40,7 @@ var ErrorNameByCode = map[int32]string{
 	30:                           "job_submission",
 	31:                           "zombie",
 	32:                           "attempt_mismatch",
+	33:                           "server_halted",
 	40:                           "transport",
 	41:                           "client_connection",
 	42:                           "server_response",

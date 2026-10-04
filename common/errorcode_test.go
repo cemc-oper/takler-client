@@ -45,6 +45,7 @@ var errorCodeContractTable = []errorCodeContractEntry{
 	{code: 30, name: "job_submission"},
 	{code: 31, name: "zombie"},
 	{code: 32, name: "attempt_mismatch"},
+	{code: 33, name: "server_halted"},
 	{code: 40, name: "transport"},
 	{code: 41, name: "client_connection"},
 	{code: 42, name: "server_response"},

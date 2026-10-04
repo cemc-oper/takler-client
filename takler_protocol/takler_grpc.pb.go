@@ -19,23 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TaklerServer_RunCommandInit_FullMethodName     = "/takler_protocol.TaklerServer/RunCommandInit"
-	TaklerServer_RunCommandComplete_FullMethodName = "/takler_protocol.TaklerServer/RunCommandComplete"
-	TaklerServer_RunCommandAbort_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandAbort"
-	TaklerServer_RunCommandEvent_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandEvent"
-	TaklerServer_RunCommandMeter_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandMeter"
-	TaklerServer_RunCommandRequeue_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandRequeue"
-	TaklerServer_RunCommandSuspend_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandSuspend"
-	TaklerServer_RunCommandResume_FullMethodName   = "/takler_protocol.TaklerServer/RunCommandResume"
-	TaklerServer_RunCommandRun_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandRun"
-	TaklerServer_RunCommandForce_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandForce"
-	TaklerServer_RunCommandFreeDep_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandFreeDep"
-	TaklerServer_RunCommandReplace_FullMethodName  = "/takler_protocol.TaklerServer/RunCommandReplace"
-	TaklerServer_RunCommandLoad_FullMethodName     = "/takler_protocol.TaklerServer/RunCommandLoad"
-	TaklerServer_RunCommandBegin_FullMethodName    = "/takler_protocol.TaklerServer/RunCommandBegin"
-	TaklerServer_RunRequestShow_FullMethodName     = "/takler_protocol.TaklerServer/RunRequestShow"
-	TaklerServer_RunRequestPing_FullMethodName     = "/takler_protocol.TaklerServer/RunRequestPing"
-	TaklerServer_QueryCoroutine_FullMethodName     = "/takler_protocol.TaklerServer/QueryCoroutine"
+	TaklerServer_RunCommandInit_FullMethodName         = "/takler_protocol.TaklerServer/RunCommandInit"
+	TaklerServer_RunCommandComplete_FullMethodName     = "/takler_protocol.TaklerServer/RunCommandComplete"
+	TaklerServer_RunCommandAbort_FullMethodName        = "/takler_protocol.TaklerServer/RunCommandAbort"
+	TaklerServer_RunCommandEvent_FullMethodName        = "/takler_protocol.TaklerServer/RunCommandEvent"
+	TaklerServer_RunCommandMeter_FullMethodName        = "/takler_protocol.TaklerServer/RunCommandMeter"
+	TaklerServer_RunCommandRequeue_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandRequeue"
+	TaklerServer_RunCommandSuspend_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandSuspend"
+	TaklerServer_RunCommandResume_FullMethodName       = "/takler_protocol.TaklerServer/RunCommandResume"
+	TaklerServer_RunCommandRun_FullMethodName          = "/takler_protocol.TaklerServer/RunCommandRun"
+	TaklerServer_RunCommandForce_FullMethodName        = "/takler_protocol.TaklerServer/RunCommandForce"
+	TaklerServer_RunCommandFreeDep_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandFreeDep"
+	TaklerServer_RunCommandReplace_FullMethodName      = "/takler_protocol.TaklerServer/RunCommandReplace"
+	TaklerServer_RunCommandLoad_FullMethodName         = "/takler_protocol.TaklerServer/RunCommandLoad"
+	TaklerServer_RunCommandBegin_FullMethodName        = "/takler_protocol.TaklerServer/RunCommandBegin"
+	TaklerServer_RunCommandServerHalt_FullMethodName   = "/takler_protocol.TaklerServer/RunCommandServerHalt"
+	TaklerServer_RunCommandServerResume_FullMethodName = "/takler_protocol.TaklerServer/RunCommandServerResume"
+	TaklerServer_RunRequestShow_FullMethodName         = "/takler_protocol.TaklerServer/RunRequestShow"
+	TaklerServer_RunRequestPing_FullMethodName         = "/takler_protocol.TaklerServer/RunRequestPing"
+	TaklerServer_QueryCoroutine_FullMethodName         = "/takler_protocol.TaklerServer/QueryCoroutine"
+	TaklerServer_RunRequestServerStatus_FullMethodName = "/takler_protocol.TaklerServer/RunRequestServerStatus"
 )
 
 // TaklerServerClient is the client API for TaklerServer service.
@@ -57,9 +60,12 @@ type TaklerServerClient interface {
 	RunCommandReplace(ctx context.Context, in *ReplaceCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandLoad(ctx context.Context, in *LoadCommand, opts ...grpc.CallOption) (*ServiceResponse, error)
 	RunCommandBegin(ctx context.Context, in *BeginCommand, opts ...grpc.CallOption) (*BatchResponse, error)
+	RunCommandServerHalt(ctx context.Context, in *ServerHaltCommand, opts ...grpc.CallOption) (*ServerStatusResponse, error)
+	RunCommandServerResume(ctx context.Context, in *ServerResumeCommand, opts ...grpc.CallOption) (*ServerStatusResponse, error)
 	RunRequestShow(ctx context.Context, in *ShowRequest, opts ...grpc.CallOption) (*ShowResponse, error)
 	RunRequestPing(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	QueryCoroutine(ctx context.Context, in *CoroutineRequest, opts ...grpc.CallOption) (*CoroutineResponse, error)
+	RunRequestServerStatus(ctx context.Context, in *ServerStatusRequest, opts ...grpc.CallOption) (*ServerStatusResponse, error)
 }
 
 type taklerServerClient struct {
@@ -210,6 +216,26 @@ func (c *taklerServerClient) RunCommandBegin(ctx context.Context, in *BeginComma
 	return out, nil
 }
 
+func (c *taklerServerClient) RunCommandServerHalt(ctx context.Context, in *ServerHaltCommand, opts ...grpc.CallOption) (*ServerStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServerStatusResponse)
+	err := c.cc.Invoke(ctx, TaklerServer_RunCommandServerHalt_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerServerClient) RunCommandServerResume(ctx context.Context, in *ServerResumeCommand, opts ...grpc.CallOption) (*ServerStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServerStatusResponse)
+	err := c.cc.Invoke(ctx, TaklerServer_RunCommandServerResume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *taklerServerClient) RunRequestShow(ctx context.Context, in *ShowRequest, opts ...grpc.CallOption) (*ShowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ShowResponse)
@@ -240,6 +266,16 @@ func (c *taklerServerClient) QueryCoroutine(ctx context.Context, in *CoroutineRe
 	return out, nil
 }
 
+func (c *taklerServerClient) RunRequestServerStatus(ctx context.Context, in *ServerStatusRequest, opts ...grpc.CallOption) (*ServerStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServerStatusResponse)
+	err := c.cc.Invoke(ctx, TaklerServer_RunRequestServerStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TaklerServerServer is the server API for TaklerServer service.
 // All implementations must embed UnimplementedTaklerServerServer
 // for forward compatibility.
@@ -259,9 +295,12 @@ type TaklerServerServer interface {
 	RunCommandReplace(context.Context, *ReplaceCommand) (*ServiceResponse, error)
 	RunCommandLoad(context.Context, *LoadCommand) (*ServiceResponse, error)
 	RunCommandBegin(context.Context, *BeginCommand) (*BatchResponse, error)
+	RunCommandServerHalt(context.Context, *ServerHaltCommand) (*ServerStatusResponse, error)
+	RunCommandServerResume(context.Context, *ServerResumeCommand) (*ServerStatusResponse, error)
 	RunRequestShow(context.Context, *ShowRequest) (*ShowResponse, error)
 	RunRequestPing(context.Context, *PingRequest) (*PingResponse, error)
 	QueryCoroutine(context.Context, *CoroutineRequest) (*CoroutineResponse, error)
+	RunRequestServerStatus(context.Context, *ServerStatusRequest) (*ServerStatusResponse, error)
 	mustEmbedUnimplementedTaklerServerServer()
 }
 
@@ -314,6 +353,12 @@ func (UnimplementedTaklerServerServer) RunCommandLoad(context.Context, *LoadComm
 func (UnimplementedTaklerServerServer) RunCommandBegin(context.Context, *BeginCommand) (*BatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunCommandBegin not implemented")
 }
+func (UnimplementedTaklerServerServer) RunCommandServerHalt(context.Context, *ServerHaltCommand) (*ServerStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunCommandServerHalt not implemented")
+}
+func (UnimplementedTaklerServerServer) RunCommandServerResume(context.Context, *ServerResumeCommand) (*ServerStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunCommandServerResume not implemented")
+}
 func (UnimplementedTaklerServerServer) RunRequestShow(context.Context, *ShowRequest) (*ShowResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunRequestShow not implemented")
 }
@@ -322,6 +367,9 @@ func (UnimplementedTaklerServerServer) RunRequestPing(context.Context, *PingRequ
 }
 func (UnimplementedTaklerServerServer) QueryCoroutine(context.Context, *CoroutineRequest) (*CoroutineResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryCoroutine not implemented")
+}
+func (UnimplementedTaklerServerServer) RunRequestServerStatus(context.Context, *ServerStatusRequest) (*ServerStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunRequestServerStatus not implemented")
 }
 func (UnimplementedTaklerServerServer) mustEmbedUnimplementedTaklerServerServer() {}
 func (UnimplementedTaklerServerServer) testEmbeddedByValue()                      {}
@@ -596,6 +644,42 @@ func _TaklerServer_RunCommandBegin_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaklerServer_RunCommandServerHalt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerHaltCommand)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerServerServer).RunCommandServerHalt(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerServer_RunCommandServerHalt_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerServerServer).RunCommandServerHalt(ctx, req.(*ServerHaltCommand))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerServer_RunCommandServerResume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerResumeCommand)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerServerServer).RunCommandServerResume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerServer_RunCommandServerResume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerServerServer).RunCommandServerResume(ctx, req.(*ServerResumeCommand))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TaklerServer_RunRequestShow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ShowRequest)
 	if err := dec(in); err != nil {
@@ -646,6 +730,24 @@ func _TaklerServer_QueryCoroutine_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TaklerServerServer).QueryCoroutine(ctx, req.(*CoroutineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerServer_RunRequestServerStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerServerServer).RunRequestServerStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerServer_RunRequestServerStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerServerServer).RunRequestServerStatus(ctx, req.(*ServerStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -714,6 +816,14 @@ var TaklerServer_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TaklerServer_RunCommandBegin_Handler,
 		},
 		{
+			MethodName: "RunCommandServerHalt",
+			Handler:    _TaklerServer_RunCommandServerHalt_Handler,
+		},
+		{
+			MethodName: "RunCommandServerResume",
+			Handler:    _TaklerServer_RunCommandServerResume_Handler,
+		},
+		{
 			MethodName: "RunRequestShow",
 			Handler:    _TaklerServer_RunRequestShow_Handler,
 		},
@@ -724,6 +834,10 @@ var TaklerServer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "QueryCoroutine",
 			Handler:    _TaklerServer_QueryCoroutine_Handler,
+		},
+		{
+			MethodName: "RunRequestServerStatus",
+			Handler:    _TaklerServer_RunRequestServerStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

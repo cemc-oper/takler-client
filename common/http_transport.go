@@ -69,6 +69,7 @@ import (
 
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // CommandURLPrefix is the URL prefix of the command endpoint, mirroring
@@ -609,6 +610,30 @@ func (t *HttpTransport) RunRequestShow(ctx context.Context, req *pb.ShowRequest)
 		return nil, &httpResponseError{err: err}
 	}
 	return &pb.ShowResponse{Output: body.Output}, nil
+}
+
+func (t *HttpTransport) serverStatusCall(ctx context.Context, command string) (*pb.ServerStatusResponse, error) {
+	raw, err := t.post(ctx, command, map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	response := &pb.ServerStatusResponse{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, response); err != nil {
+		return nil, &httpResponseError{err: err}
+	}
+	return response, nil
+}
+
+func (t *HttpTransport) RunRequestServerStatus(ctx context.Context, _ *pb.ServerStatusRequest) (*pb.ServerStatusResponse, error) {
+	return t.serverStatusCall(ctx, "server-status")
+}
+
+func (t *HttpTransport) RunCommandServerHalt(ctx context.Context, _ *pb.ServerHaltCommand) (*pb.ServerStatusResponse, error) {
+	return t.serverStatusCall(ctx, "server-halt")
+}
+
+func (t *HttpTransport) RunCommandServerResume(ctx context.Context, _ *pb.ServerResumeCommand) (*pb.ServerStatusResponse, error) {
+	return t.serverStatusCall(ctx, "server-resume")
 }
 
 func (t *HttpTransport) RunRequestPing(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {

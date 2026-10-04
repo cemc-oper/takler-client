@@ -34,6 +34,7 @@ var exitCodeErrorCodeTable = []exitCodeErrorCodeCase{
 	{name: "job_submission", code: 30, expected: ExitServerError},
 	{name: "zombie", code: 31, expected: ExitServerError},
 	{name: "attempt_mismatch", code: 32, expected: ExitRequestError},
+	{name: "server_halted", code: 33, expected: ExitRequestError},
 	{name: "transport", code: 40, expected: ExitUnreachable},
 	{name: "client_connection", code: 41, expected: ExitUnreachable},
 	{name: "server_response", code: 42, expected: ExitServerError},

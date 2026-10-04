@@ -49,6 +49,9 @@ func (b *commandsBuilder) addAll() *commandsBuilder {
 		newShowCommand(),
 		newPingCommand(),
 		newCoroutineCommand(),
+		newServerStatusCommand(),
+		newServerHaltCommand(),
+		newServerResumeCommand(),
 	)
 	return b
 }

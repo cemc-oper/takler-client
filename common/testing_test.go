@@ -264,6 +264,27 @@ func (s *fakeServicer) RunCommandBegin(ctx context.Context, req *pb.BeginCommand
 	return s.batchCall(ctx, "RunCommandBegin", req)
 }
 
+func (s *fakeServicer) RunRequestServerStatus(ctx context.Context, req *pb.ServerStatusRequest) (*pb.ServerStatusResponse, error) {
+	if err := s.admit(ctx, "RunRequestServerStatus", req); err != nil {
+		return nil, err
+	}
+	return &pb.ServerStatusResponse{Status: "running"}, nil
+}
+
+func (s *fakeServicer) RunCommandServerHalt(ctx context.Context, req *pb.ServerHaltCommand) (*pb.ServerStatusResponse, error) {
+	if err := s.admit(ctx, "RunCommandServerHalt", req); err != nil {
+		return nil, err
+	}
+	return &pb.ServerStatusResponse{Status: "halted"}, nil
+}
+
+func (s *fakeServicer) RunCommandServerResume(ctx context.Context, req *pb.ServerResumeCommand) (*pb.ServerStatusResponse, error) {
+	if err := s.admit(ctx, "RunCommandServerResume", req); err != nil {
+		return nil, err
+	}
+	return &pb.ServerStatusResponse{Status: "running"}, nil
+}
+
 // Query commands.
 
 func (s *fakeServicer) RunRequestShow(ctx context.Context, req *pb.ShowRequest) (*pb.ShowResponse, error) {

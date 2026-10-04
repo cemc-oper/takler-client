@@ -113,6 +113,9 @@ type Transport interface {
 	RunRequestShow(context.Context, *pb.ShowRequest) (*pb.ShowResponse, error)
 	RunRequestPing(context.Context, *pb.PingRequest) (*pb.PingResponse, error)
 	QueryCoroutine(context.Context, *pb.CoroutineRequest) (*pb.CoroutineResponse, error)
+	RunRequestServerStatus(context.Context, *pb.ServerStatusRequest) (*pb.ServerStatusResponse, error)
+	RunCommandServerHalt(context.Context, *pb.ServerHaltCommand) (*pb.ServerStatusResponse, error)
+	RunCommandServerResume(context.Context, *pb.ServerResumeCommand) (*pb.ServerStatusResponse, error)
 }
 
 // normalizeTransportName returns the canonical transport name in value.

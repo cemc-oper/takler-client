@@ -225,6 +225,18 @@ func (t *GrpcTransport) RunCommandReplace(ctx context.Context, req *pb.ReplaceCo
 	return t.client.RunCommandReplace(ctx, req)
 }
 
+func (t *GrpcTransport) RunRequestServerStatus(ctx context.Context, req *pb.ServerStatusRequest) (*pb.ServerStatusResponse, error) {
+	return t.client.RunRequestServerStatus(ctx, req)
+}
+
+func (t *GrpcTransport) RunCommandServerHalt(ctx context.Context, req *pb.ServerHaltCommand) (*pb.ServerStatusResponse, error) {
+	return t.client.RunCommandServerHalt(ctx, req)
+}
+
+func (t *GrpcTransport) RunCommandServerResume(ctx context.Context, req *pb.ServerResumeCommand) (*pb.ServerStatusResponse, error) {
+	return t.client.RunCommandServerResume(ctx, req)
+}
+
 func tlsFailure(message string) bool {
 	message = strings.ToLower(message)
 	for _, marker := range []string{"certificate verify failed", "certificate_verify_failed", "ssl handshake", "tls handshake", "peer name", "x509:"} {

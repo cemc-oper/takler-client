@@ -62,6 +62,7 @@ var ExitCodeByErrorCode = map[int32]int{
 	30: ExitServerError,  // job_submission
 	31: ExitServerError,  // zombie
 	32: ExitRequestError, // attempt_mismatch
+	33: ExitRequestError, // server_halted
 	40: ExitUnreachable,  // transport
 	41: ExitUnreachable,  // client_connection
 	42: ExitServerError,  // server_response

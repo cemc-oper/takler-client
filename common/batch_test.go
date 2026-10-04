@@ -11,7 +11,7 @@ import (
 
 func TestAllMutationsNeverRetry(t *testing.T) {
 	for _, wire := range []string{"grpc", "http"} {
-		for _, name := range []string{"init", "complete", "abort", "event", "meter", "load", "replace", "requeue", "suspend", "resume", "run", "force", "free-dep", "begin"} {
+		for _, name := range []string{"init", "complete", "abort", "event", "meter", "load", "replace", "requeue", "suspend", "resume", "run", "force", "free-dep", "begin", "server-halt", "server-resume"} {
 			t.Run(wire+"/"+name, func(t *testing.T) {
 				t.Setenv(EnvRetryWindow, "600")
 				var client *TaklerServiceClient
@@ -59,6 +59,10 @@ func TestAllMutationsNeverRetry(t *testing.T) {
 					_, err = client.RunCommandFreeDep([]string{"/f/a"}, "all")
 				case "begin":
 					_, err = client.RunCommandBegin("f", false)
+				case "server-halt":
+					_, err = client.RunCommandServerHalt()
+				case "server-resume":
+					_, err = client.RunCommandServerResume()
 				}
 				assertExitError(t, err, ExitUnreachable)
 				if !strings.Contains(err.Error(), "outcome unknown; query server state") {

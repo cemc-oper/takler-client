@@ -27,7 +27,7 @@ func init() {
 	}
 }
 func readOnlyCommand(name string) bool {
-	return name == "ping" || name == "show" || name == "coroutine"
+	return name == "ping" || name == "show" || name == "coroutine" || name == "server-status"
 }
 func jsonContentType(s string) bool {
 	return contentTypePattern.MatchString(strings.Trim(s, " \t"))
@@ -151,6 +151,21 @@ func wireFields(value any, fields map[string]string) error {
 		switch kind {
 		case "b":
 			_, valid = v.(bool)
+		case "ns":
+			if v == nil {
+				valid = true
+			} else {
+				_, valid = v.(string)
+			}
+		case "no":
+			if v == nil {
+				valid = true
+			} else {
+				_, valid = v.(map[string]any)
+			}
+		case "server_status":
+			s, ok := v.(string)
+			valid = ok && containsString([]string{"running", "halted"}, s)
 		case "as":
 			a, ok := v.([]any)
 			valid = ok

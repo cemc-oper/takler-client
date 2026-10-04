@@ -99,13 +99,13 @@ func TestSharedWireVectors(t *testing.T) {
 
 // Expand the shared seed corpus to every field of all 17 payload schemas.
 func TestEveryWireFieldRejectsMissingNullAndWrongTypes(t *testing.T) {
-	values := map[string]any{"s": "x", "b": false, "as": []any{"/f"}, "decimal": "0", "base64": "AA==", "state": "complete", "dep": "all", "flag": 0, "uint32": 0, "effect": "applied", "items": []any{}, "coroutines": []any{}}
+	values := map[string]any{"s": "x", "b": false, "as": []any{"/f"}, "decimal": "0", "base64": "AA==", "state": "complete", "dep": "all", "flag": 0, "uint32": 0, "effect": "applied", "items": []any{}, "coroutines": []any{}, "ns": "x", "no": map[string]any{}, "server_status": "running"}
 	for _, direction := range []string{"request", "response"} {
 		var schemas map[string]map[string]string
 		if err := json.Unmarshal(wireSchema[direction], &schemas); err != nil {
 			t.Fatal(err)
 		}
-		if len(schemas) != 17 {
+		if len(schemas) != 20 {
 			t.Fatalf("schema count %d", len(schemas))
 		}
 		for command, schema := range schemas {
@@ -130,6 +130,12 @@ func TestEveryWireFieldRejectsMissingNullAndWrongTypes(t *testing.T) {
 					delete(payload, key)
 					check(false)
 					for _, bad := range []any{nil, map[string]any{}, 1.5} {
+						if bad == nil && (kind == "ns" || kind == "no") {
+							continue
+						}
+						if _, ok := bad.(map[string]any); ok && kind == "no" {
+							continue
+						}
 						payload[key] = bad
 						check(false)
 					}
