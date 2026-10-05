@@ -37,8 +37,8 @@ func newShowCommand() *showCommand {
 	c := &showCommand{}
 	showCmd := &cobra.Command{
 		Use:   "show",
-		Short: "[query] print bunch tree.",
-		Long:  "print state of all flows in server",
+		Short: "[query] print service and workflow diagnostic tree",
+		Long:  "print service status and all flows, including current task attempts and file references",
 		RunE:  c.runCommand,
 	}
 

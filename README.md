@@ -54,7 +54,7 @@ scripts).
 
 | Command | Purpose |
 | --- | --- |
-| `show` | print the node tree (`--show-trigger`, `--show-parameter`, `--show-all`, ...) |
+| `show` | print the node tree and root service status, including current task attempts and file references (`--show-trigger`, `--show-parameter`, `--show-all`, ...) |
 | `ping` | health check; needs no credentials |
 | `coroutine` | list the coroutines on the server's event loop |
 

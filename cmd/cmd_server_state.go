@@ -18,7 +18,7 @@ type serverStateCommand struct {
 func newServerStateCommand(operation string) *serverStateCommand {
 	c := &serverStateCommand{operation: operation}
 	help := map[string]string{
-		"server-status": "[query] show server execution state and halt causes",
+		"server-status": "[query] show service state and checkpoint recovery summary",
 		"server-halt":   "[control] halt new server execution",
 		"server-resume": "[control] remove manual and recovery halt causes",
 	}
