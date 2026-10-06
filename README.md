@@ -32,7 +32,7 @@ scripts).
 
 | Command | Purpose |
 | --- | --- |
-| `init --task-id ID` | report job start; `ID` identifies the job instance (a scheduler job id or the PID) |
+| `init --task-id ID` | report job start; `ID` is the job ID (`TAKLER_RID`, such as a scheduler job id or PID), separate from the attempt UUID |
 | `complete` | report successful completion |
 | `abort [--reason TEXT]` | report failure |
 | `event --event-name NAME` | set an event |
@@ -49,6 +49,7 @@ scripts).
 | `free-dep [--dep-type all\|time\|trigger] PATH...` | release dependencies |
 | `load [--flow-type json] FLOW_FILE` | load a new single Flow DefinitionDocument v1; rejects existing names; requires explicit begin |
 | `begin [FLOW_NAME]` | start the calendar (all flows when no name is given) |
+| `server-halt` / `server-resume` | halt new service execution / resume after manual checks; distinct from node `suspend` / `resume` |
 
 ## Query commands
 
@@ -57,6 +58,15 @@ scripts).
 | `show` | print the node tree and root service status, including current task attempts and file references (`--show-trigger`, `--show-parameter`, `--show-all`, ...) |
 | `ping` | health check; needs no credentials |
 | `coroutine` | list the coroutines on the server's event loop |
+| `server-status` | show service status, halt causes, and checkpoint recovery summary |
+
+`server-halt` blocks both automatic work and manual `run --force`. Restored
+services start halted; inspect `server-status` and `show`, reconcile external
+jobs, then use `server-resume`. A successful control response describes an
+in-memory change; the next checkpoint may not have been written yet.
+The service keeps deployment settings separately from its checkpointed
+running/halted state; restoring a checkpoint does not replace the current
+server address.
 
 Run `takler_client <command> --help` for the full option list of a command.
 
@@ -89,12 +99,18 @@ Unlike on the Python client, `TAKLER_TLS_SERVER_NAME` also works over HTTP.
 | `TAKLER_CONNECT_FILE` | path of the shared `connect.yaml` |
 | `TAKLER_TRANSPORT` | `grpc` (default) or `http` |
 | `TAKLER_NAME` | default node path of child commands; injected into job scripts |
+| `TAKLER_ATTEMPT_ID` | current execution attempt UUID; required by every child command unless `--attempt-id` is given |
+| `TAKLER_RID` | job ID reported by `init --task-id`; may be reused independently of the attempt UUID |
 | `TAKLER_PASS` | one-time job password; injected into job scripts, sent by child commands |
 | `TAKLER_SECRET_FILE` | operator shared-secret file (control and query commands) |
 | `TAKLER_TLS_CA_FILE` | CA certificate to trust; unset means plaintext |
 | `TAKLER_TLS_SERVER_NAME` | certificate host name override |
-| `TAKLER_TIMEOUT` | retry window in seconds; defaults: 86400 for child commands, 60 otherwise |
+| `TAKLER_TIMEOUT` | read-only retry window in seconds (default 60); mutating commands, including child reports, send once |
 | `NO_TAKLER` | when set (any value), child commands succeed without contacting the server — for debugging scripts stand-alone |
+
+`TAKLER_ATTEMPT_ID` identifies one execution attempt, even when `try_no` resets
+after `requeue`. `TAKLER_RID` names the external job reported by `init`;
+`TAKLER_PASS` is the credential. The UUID alone does not authorize a report.
 
 # Exit codes
 
@@ -107,7 +123,7 @@ transport failure. A failure prints exactly one line on stderr, so
 # Job script integration
 
 A task's job script reports its lifecycle with the child commands; the server
-injects `TAKLER_HOST`, `TAKLER_PORT`, `TAKLER_NAME` and `TAKLER_PASS` when it
+injects `TAKLER_HOST`, `TAKLER_PORT`, `TAKLER_NAME`, `TAKLER_ATTEMPT_ID` and `TAKLER_PASS` when it
 generates the script. The canonical shape (see the takler tutorial's
 `head.takler` / `tail.takler`):
 
@@ -118,6 +134,7 @@ set -e
 export TAKLER_HOST={{ TAKLER_HOST }}      # rendered by the server
 export TAKLER_PORT={{ TAKLER_PORT }}
 export TAKLER_NAME={{ TAKLER_NAME }}
+export TAKLER_ATTEMPT_ID={{ TAKLER_ATTEMPT_ID }}
 export TAKLER_PASS={{ TAKLER_PASS }}
 export TAKLER_RID=${SLURM_JOB_ID:-$$}     # job instance id
 
@@ -224,7 +241,7 @@ usage, or a changed target identity prevents replacement. Suspension does not
 bypass these checks. Success begins the new Flow and preserves only the old
 Flow's own suspended flag; descendant runtime progress is reset.
 
-R0 provides neither request deduplication nor exactly-once submission. Repeating
+Takler provides neither cross-restart request deduplication nor exactly-once submission. Repeating
 replace initializes the Flow again. YAML, legacy mixed trees, checkpoints,
 query projections, Bunch roots and runtime fields are not accepted as load or
 replace definitions. Custom types must be registered by trusted server startup
@@ -252,6 +269,11 @@ Parameters matching built-in credential names or the server's
 `security.query_redacted_parameters` list have the value `<redacted>`. The name
 list distinguishes redaction from a literal value. This view is for inspection,
 not a definition or checkpoint document.
+
+The R1-16 local synthetic 10k-task `show` response was about 7.85 MB and
+exceeded the default gRPC client's 4 MiB receive limit. That sample has no
+valid gRPC `show` latency; smaller-tree measurements do not establish a
+supported production scale or SLO.
 
 Run `UV_CACHE_DIR=/tmp/takler-uv-cache make show-contract` to exercise both CLIs
 against the paired Python server over HTTP and gRPC, including unknown task types
@@ -298,4 +320,5 @@ owner execute. Existing files are written directly, and a failed write can leave
 partial content. Operators manage the trusted job directories and permissions.
 HPC scheduler interaction is provided by orvix through the configured submission
 command. The local submission process does not restrict jobs to local execution.
-`async_task` automatic scheduling is deferred to R1.
+`async_task` is explicitly rejected at definition and execution boundaries;
+the full asynchronous task model is outside R1.

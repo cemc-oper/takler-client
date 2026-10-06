@@ -98,7 +98,7 @@ func newPingCommand() *pingCommand {
 	c := &pingCommand{}
 	pingCmd := &cobra.Command{
 		Use:   "ping",
-		Short: "[query] check the server is running with given host and hort.",
+		Short: "[query] check the server is running with given host and port.",
 		Long:  "ping server",
 		RunE:  c.runCommand,
 	}
