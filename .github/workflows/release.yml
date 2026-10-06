@@ -1,0 +1,108 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing remote release tag"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without creating a GitHub release"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  TAG_NAME: ${{ inputs.tag || github.ref_name }}
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build checked binaries
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify tagged checkout and exact-commit CI
+        id: source
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          args=(--tag "$TAG_NAME" --repository "$GITHUB_REPOSITORY" --check-remote --proof-file release-source.json
+            --required-job 'ci (Go)' --required-job 'paired protocol and CLI contracts')
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            args+=(--expected-sha "$GITHUB_SHA")
+          fi
+          python scripts/release_gate.py source "${args[@]}"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build Linux binaries with source identity
+        run: |
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            GOOS=linux GOARCH="$arch" make VERSION="$TAG_NAME" COMMIT="${{ steps.source.outputs.commit }}"
+            mv bin/takler_client "dist/takler_client-linux-$arch"
+          done
+          test "$(dist/takler_client-linux-amd64 --version)" = "$TAG_NAME (${{ steps.source.outputs.commit }})"
+          dist/takler_client-linux-amd64 --help > /dev/null
+          cd dist
+          sha256sum takler_client-linux-* > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Record and verify artifact checksums
+        run: |
+          python scripts/release_gate.py manifest --proof-file release-source.json --dist dist --manifest dist/release-manifest.json
+          python scripts/release_gate.py verify --tag "$TAG_NAME" --repository "$GITHUB_REPOSITORY" --check-remote --expected-sha "${{ steps.source.outputs.commit }}" --dist dist --manifest dist/release-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: publish GitHub release
+    needs: build
+    if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-binaries
+          path: dist
+      - name: Recheck tag and downloaded checksums
+        run: |
+          python scripts/release_gate.py verify --tag "$TAG_NAME" --repository "$GITHUB_REPOSITORY" --check-remote --expected-sha "${{ needs.build.outputs.commit }}" --dist dist --manifest dist/release-manifest.json
+          cd dist
+          sha256sum -c SHA256SUMS
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG_NAME" dist/takler_client-linux-* dist/SHA256SUMS dist/release-manifest.json --verify-tag --generate-notes

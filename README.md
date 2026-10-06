@@ -158,6 +158,22 @@ make check      # go vet, gofmt check, tests and the coverage gate
 make http-contract  # contract test of all commands over HTTP against a real takler server
 ```
 
+## Release verification
+
+`make VERSION=v1.2.3 COMMIT=<full-commit-sha>` embeds the source identity in
+`bin/takler_client --version`. The release workflow checks out an existing tag,
+requires the latest `ci.yml` run for that exact main-branch commit and its Go
+and paired-contract jobs to pass, then builds Linux amd64 and arm64 binaries.
+It records the tag, commit, CI run, and SHA-256 hashes in
+`release-manifest.json`; `SHA256SUMS` can be checked with `sha256sum -c` from
+the downloaded artifact directory.
+
+To validate a release without uploading anything, run the **release** workflow
+manually with an existing remote tag and leave `dry_run` enabled. The build job
+uploads only a GitHub Actions artifact. A tag push, or a manual run with
+`dry_run` disabled, creates the GitHub Release after rechecking the tag and
+downloaded checksums. A failed or missing exact-commit CI run blocks the build.
+
 `takler_protocol` is generated code and is excluded from the coverage gate. The
 threshold can be raised for a single run with `COVERAGE_THRESHOLD=80 make cover-check`.
 

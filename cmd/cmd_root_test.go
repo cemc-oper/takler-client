@@ -72,3 +72,13 @@ func TestRootCommandSilencesCobraOutput(t *testing.T) {
 		t.Fatal("root command must silence both cobra error and usage output")
 	}
 }
+
+func TestRootCommandReportsEmbeddedSourceVersion(t *testing.T) {
+	previousVersion, previousCommit := Version, Commit
+	Version, Commit = "v1.2.3", "0123456789abcdef"
+	t.Cleanup(func() { Version, Commit = previousVersion, previousCommit })
+	rootCmd := newCommandsBuilder().addAll().build().getCommand()
+	if got, want := rootCmd.Version, "v1.2.3 (0123456789abcdef)"; got != want {
+		t.Fatalf("root version = %q, want %q", got, want)
+	}
+}

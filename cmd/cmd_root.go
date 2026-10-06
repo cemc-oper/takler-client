@@ -11,6 +11,10 @@ import (
 
 const appCommand = "takler_client"
 
+// Version and Commit are set by the release build from the checked out tag.
+var Version = "dev"
+var Commit = "unknown"
+
 type commandsBuilder struct {
 	commands    []Command
 	rootCommand *cobra.Command
@@ -65,9 +69,10 @@ func (b *commandsBuilder) build() *commandsBuilder {
 
 func newCommandsBuilder() *commandsBuilder {
 	rootCommand := &cobra.Command{
-		Use:   appCommand,
-		Short: "A CLI client for Takler.",
-		Long:  "A CLI client for Takler.",
+		Use:     appCommand,
+		Short:   "A CLI client for Takler.",
+		Long:    "A CLI client for Takler.",
+		Version: fmt.Sprintf("%s (%s)", Version, Commit),
 		Run: func(cmd *cobra.Command, args []string) {
 		},
 
@@ -78,6 +83,7 @@ func newCommandsBuilder() *commandsBuilder {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
+	rootCommand.SetVersionTemplate("{{.Version}}\n")
 
 	rootCommand.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		return common.NewExitError(common.ExitRequestError, err.Error())

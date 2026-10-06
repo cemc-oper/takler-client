@@ -6,8 +6,12 @@ export BIN_PATH := $(shell pwd)/bin
 # cover target for a human to browse with "go tool cover -html".
 export COVERAGE_PROFILE := $(shell pwd)/coverage.out
 
+VERSION ?= dev
+COMMIT ?= $(shell git rev-parse HEAD)
+
 all:
-	go build \
+	mkdir -p ${BIN_PATH}
+	go build -trimpath -ldflags "-X github.com/cemc-oper/takler-client/cmd.Version=$(VERSION) -X github.com/cemc-oper/takler-client/cmd.Commit=$(COMMIT)" \
 		-o ${BIN_PATH}/takler_client \
 		main.go
 
