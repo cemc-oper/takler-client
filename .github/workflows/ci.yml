@@ -123,6 +123,11 @@ jobs:
       env:
         TAKLER_REPO: ../takler
       run: make proto-check wire-check
+    - name: Confirm drift gates reject mismatched peers
+      working-directory: takler-client
+      env:
+        TAKLER_REPO: ../takler
+      run: bash scripts/check_drift_negative.sh
     - name: Run HTTP command matrix
       working-directory: takler-client
       env:
@@ -133,3 +138,9 @@ jobs:
       env:
         TAKLER_REPO: ../takler
       run: make load-contract replace-contract show-contract
+    - name: Run child identity and service state matrix
+      working-directory: takler
+      env:
+        TAKLER_SHOW_GO_CLIENT: ../takler-client/bin/takler_client
+      run: |
+        uv run --no-sync pytest -q tests/packaging/test_ci_workflow.py tests/integration/test_child_identity_matrix.py tests/integration/test_server_state_cli_matrix.py tests/integration/test_show_cli_contract.py

@@ -9,7 +9,7 @@
 #     is understood by the Python server (task 7), command for command;
 #   - the exit code contract (requirements 15.1 ~ 15.5): flag 0 exits 0 with
 #     "received: success", a business failure exits with the Error_Code's
-#     mapping (node_not_found -> 1, the unvalidated meter value -> 3), an
+#     mapping (node_not_found -> 1, invalid HTTP meter value -> 1), an
 #     unreachable server exits 4;
 #   - the no-client-side-validation rule: meter_value "abc" crosses the wire
 #     and is classified by the server, exactly as on the gRPC channel.
@@ -182,20 +182,21 @@ fi
 # The commands below all reach the server and are answered with a non-zero
 # flag: the envelope round-trips, and the flag maps to the contract's exit
 # code. node_not_found is exit 1; the unvalidated meter value ("abc" crosses
-# the wire verbatim) is classified by the server as internal_error, exit 3.
+# the wire verbatim) is rejected by HTTP validation with status 422, exit 1.
+ATTEMPT_ID="123e4567-e89b-42d3-a456-426614174000"
 expect_flag "init on an unknown node" 1 node_not_found \
-    init --node-path /flow1/no_such_task --task-id job-1
+    init --node-path /flow1/no_such_task --task-id job-1 --attempt-id "$ATTEMPT_ID"
 expect_flag "complete on an unknown node" 1 node_not_found \
-    complete --node-path /flow1/no_such_task
+    complete --node-path /flow1/no_such_task --attempt-id "$ATTEMPT_ID"
 expect_flag "abort on an unknown node" 1 node_not_found \
-    abort --node-path /flow1/no_such_task --reason boom
+    abort --node-path /flow1/no_such_task --reason boom --attempt-id "$ATTEMPT_ID"
 expect_flag "event on an unknown node" 1 node_not_found \
-    event --node-path /flow1/no_such_task --event-name event_a
+    event --node-path /flow1/no_such_task --event-name event_a --attempt-id "$ATTEMPT_ID"
 expect_flag "meter on an unknown node" 1 node_not_found \
-    meter --node-path /flow1/no_such_task --meter-name meter_a --meter-value 5
+    meter --node-path /flow1/no_such_task --meter-name meter_a --meter-value 5 --attempt-id "$ATTEMPT_ID"
 expect_flag "run on an unknown node" 1 node_not_found run /flow1/no_such_task
 expect_flag "invalid wire meter value" 1 "HTTP status 422" \
-    meter --node-path /flow1/container1/task1 --meter-name meter_a --meter-value abc
+    meter --node-path /flow1/container1/task1 --meter-name meter_a --meter-value abc --attempt-id "$ATTEMPT_ID"
 
 # -- Unreachable server -------------------------------------------------------
 # A closed port exhausts the zero Retry_Window after one attempt: exit 4.
