@@ -73,6 +73,8 @@ replace-contract: all
 wire-check:
 	cmp common/wire_schema.json "$${TAKLER_REPO:-../takler}/src/takler/protocol/wire_schema.json"
 	cmp common/testdata/http_vectors.json "$${TAKLER_REPO:-../takler}/tests/protocol/fixtures/http_vectors.json"
+	cmp common/query_v1_schema.json "$${TAKLER_REPO:-../takler}/src/takler/protocol/query_v1_schema.json"
+	cmp common/testdata/query_v1_vectors.json "$${TAKLER_REPO:-../takler}/tests/protocol/fixtures/query_v1_vectors.json"
 
 .PHONY: show-contract
 show-contract: all

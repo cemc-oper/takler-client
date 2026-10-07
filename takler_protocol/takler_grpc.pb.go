@@ -843,3 +843,219 @@ var TaklerServer_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "takler_protocol/takler.proto",
 }
+
+const (
+	TaklerQuery_GetCapabilities_FullMethodName = "/takler_protocol.TaklerQuery/GetCapabilities"
+	TaklerQuery_ReadPage_FullMethodName        = "/takler_protocol.TaklerQuery/ReadPage"
+	TaklerQuery_ReadDetail_FullMethodName      = "/takler_protocol.TaklerQuery/ReadDetail"
+	TaklerQuery_ReadDetailChunk_FullMethodName = "/takler_protocol.TaklerQuery/ReadDetailChunk"
+)
+
+// TaklerQueryClient is the client API for TaklerQuery service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TaklerQueryClient interface {
+	GetCapabilities(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadPage(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadDetail(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadDetailChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+}
+
+type taklerQueryClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTaklerQueryClient(cc grpc.ClientConnInterface) TaklerQueryClient {
+	return &taklerQueryClient{cc}
+}
+
+func (c *taklerQueryClient) GetCapabilities(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_GetCapabilities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerQueryClient) ReadPage(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadPage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerQueryClient) ReadDetail(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerQueryClient) ReadDetailChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadDetailChunk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TaklerQueryServer is the server API for TaklerQuery service.
+// All implementations must embed UnimplementedTaklerQueryServer
+// for forward compatibility.
+type TaklerQueryServer interface {
+	GetCapabilities(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadPage(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadDetail(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadDetailChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	mustEmbedUnimplementedTaklerQueryServer()
+}
+
+// UnimplementedTaklerQueryServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTaklerQueryServer struct{}
+
+func (UnimplementedTaklerQueryServer) GetCapabilities(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCapabilities not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadPage(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadPage not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadDetail(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadDetail not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadDetailChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadDetailChunk not implemented")
+}
+func (UnimplementedTaklerQueryServer) mustEmbedUnimplementedTaklerQueryServer() {}
+func (UnimplementedTaklerQueryServer) testEmbeddedByValue()                     {}
+
+// UnsafeTaklerQueryServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TaklerQueryServer will
+// result in compilation errors.
+type UnsafeTaklerQueryServer interface {
+	mustEmbedUnimplementedTaklerQueryServer()
+}
+
+func RegisterTaklerQueryServer(s grpc.ServiceRegistrar, srv TaklerQueryServer) {
+	// If the following call pancis, it indicates UnimplementedTaklerQueryServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TaklerQuery_ServiceDesc, srv)
+}
+
+func _TaklerQuery_GetCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).GetCapabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_GetCapabilities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).GetCapabilities(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerQuery_ReadPage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadPage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadPage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadPage(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerQuery_ReadDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadDetail(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerQuery_ReadDetailChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadDetailChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadDetailChunk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadDetailChunk(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TaklerQuery_ServiceDesc is the grpc.ServiceDesc for TaklerQuery service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TaklerQuery_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "takler_protocol.TaklerQuery",
+	HandlerType: (*TaklerQueryServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetCapabilities",
+			Handler:    _TaklerQuery_GetCapabilities_Handler,
+		},
+		{
+			MethodName: "ReadPage",
+			Handler:    _TaklerQuery_ReadPage_Handler,
+		},
+		{
+			MethodName: "ReadDetail",
+			Handler:    _TaklerQuery_ReadDetail_Handler,
+		},
+		{
+			MethodName: "ReadDetailChunk",
+			Handler:    _TaklerQuery_ReadDetailChunk_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "takler_protocol/takler.proto",
+}
