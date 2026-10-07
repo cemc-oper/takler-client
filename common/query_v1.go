@@ -135,7 +135,7 @@ var queryGroupFields = map[string]map[string]bool{
 	"parameters": {"user": true, "ancestors": true},
 	"runtime":    {"begun": true, "calendar_flow_time": true, "attempt_id": true, "try_no": true, "task_id": true, "submitted_at": true, "started_at": true, "ended_at": true, "aborted_reason": true, "events": true, "meters": true, "repeat": true, "limits": true},
 	"artifacts":  {"job_ref": true, "jobout_ref": true, "orvix_info_path": true},
-	"service":    {"status": true, "halt_causes": true, "last_checkpoint_at": true, "restore_summary": true, "generated_defaults": true},
+	"service":    {"status": true, "status_reason": true, "halt_causes": true, "message": true, "last_checkpoint_at": true, "restore_summary": true, "generated_defaults": true},
 }
 
 func validQueryParameter(value any) bool {
@@ -299,6 +299,11 @@ func validQueryGroup(name string, fields map[string]any) bool {
 		}
 		if fields["status"] != "running" && fields["status"] != "halted" {
 			return false
+		}
+		for _, optional := range []string{"status_reason", "message"} {
+			if value, ok := fields[optional]; ok && !queryOptionalString(value) {
+				return false
+			}
 		}
 		causes, ok := fields["halt_causes"].([]any)
 		if !ok {
