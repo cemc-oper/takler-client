@@ -10,6 +10,7 @@ package common
 
 import (
 	"fmt"
+	"sync"
 )
 
 // SecurityLevels is the pair of precedence levels the cmd layer supplies to the
@@ -68,7 +69,9 @@ type TaklerServiceClient struct {
 	credentials *Credentials
 
 	// transport is how the calls reach the server. Never nil.
-	transport Transport
+	transport    Transport
+	queryMu      sync.Mutex
+	queryCurrent *QuerySnapshot
 }
 
 // Credentials returns the Credentials of this client, which the Call_Wrapper

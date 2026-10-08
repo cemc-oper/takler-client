@@ -143,7 +143,9 @@ func TestEveryCommandReportsUnusableCaCertificate(t *testing.T) {
 			if !strings.Contains(exitErr.Message, caFile) {
 				t.Errorf("message = %q, want it to name %q", exitErr.Message, caFile)
 			}
-			if !strings.Contains(output, "test_host:4321") {
+			if name == "show" && output != "" {
+				t.Errorf("show printed partial output on failure: %q", output)
+			} else if name != "show" && !strings.Contains(output, "test_host:4321") {
 				t.Errorf("output = %q, want it to name the server the command talked to", output)
 			}
 		})

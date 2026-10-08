@@ -27,7 +27,7 @@ func init() {
 	}
 }
 func readOnlyCommand(name string) bool {
-	return name == "ping" || name == "show" || name == "coroutine" || name == "server-status"
+	return name == "ping" || name == "show" || name == "coroutine" || name == "server-status" || strings.HasPrefix(name, "query ")
 }
 func jsonContentType(s string) bool {
 	return contentTypePattern.MatchString(strings.Trim(s, " \t"))

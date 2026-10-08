@@ -40,8 +40,9 @@ type GrpcTransport struct {
 	// resolved from.
 	security SecurityLevels
 
-	conn   *grpc.ClientConn
-	client pb.TaklerServerClient
+	conn        *grpc.ClientConn
+	client      pb.TaklerServerClient
+	queryClient pb.TaklerQueryClient
 }
 
 // NewGrpcTransport returns the gRPC transport of the server at host:port whose
@@ -79,6 +80,7 @@ func (t *GrpcTransport) Open() error {
 
 	t.conn = conn
 	t.client = pb.NewTaklerServerClient(conn)
+	t.queryClient = pb.NewTaklerQueryClient(conn)
 	return nil
 }
 
@@ -94,6 +96,36 @@ func (t *GrpcTransport) Close() {
 	_ = t.conn.Close()
 	t.conn = nil
 	t.client = nil
+	t.queryClient = nil
+}
+
+// QueryDocument sends a strict QueryDocument v1 JSON payload through TaklerQuery.
+func (t *GrpcTransport) QueryDocument(ctx context.Context, kind string, raw []byte) ([]byte, error) {
+	if t.queryClient == nil {
+		return nil, NewExitError(ExitRequestError, "query transport is not open")
+	}
+	request := &pb.QueryDocumentPayload{Json: raw}
+	var response *pb.QueryDocumentPayload
+	var err error
+	switch kind {
+	case "capabilities_request":
+		response, err = t.queryClient.GetCapabilities(ctx, request)
+	case "page_request":
+		response, err = t.queryClient.ReadPage(ctx, request)
+	case "detail_request":
+		response, err = t.queryClient.ReadDetail(ctx, request)
+	case "chunk_request":
+		response, err = t.queryClient.ReadDetailChunk(ctx, request)
+	default:
+		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, NewExitError(ExitServerError, "missing query response")
+	}
+	return response.Json, nil
 }
 
 // getServerAddress returns the "host:port" the transport talks to, as it

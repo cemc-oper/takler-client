@@ -1,7 +1,7 @@
 package common
 
 // QueryDocument v1 is a strict JSON document on both HTTP and gRPC. This
-// module is the Go contract decoder; the query client is added in R2-10A.
+// module is the Go contract decoder used by the initial query client.
 
 import (
 	"bytes"

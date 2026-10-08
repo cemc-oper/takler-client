@@ -8,7 +8,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/cemc-oper/takler-client/common"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +24,11 @@ import (
 type showCommand struct {
 	BaseCommand
 
-	host string
-	port string
+	host  string
+	port  string
+	scope string
+	flow  string
+	depth int
 
 	showParameter bool
 	showTrigger   bool
@@ -37,18 +42,21 @@ func newShowCommand() *showCommand {
 	c := &showCommand{}
 	showCmd := &cobra.Command{
 		Use:   "show",
-		Short: "[query] print service and workflow diagnostic tree",
-		Long:  "print service status and all flows, including current task attempts and file references",
+		Short: "[query] print a compact workflow summary",
+		Long:  "read a complete paged workflow summary; use scope, depth, or detail flags to select more data",
 		RunE:  c.runCommand,
 	}
 
 	showCmd.Flags().StringVar(&c.host, "host", "", "takler service host")
 	showCmd.Flags().StringVar(&c.port, "port", "", "takler service port")
+	showCmd.Flags().StringVar(&c.scope, "scope", "", "subtree path")
+	showCmd.Flags().StringVar(&c.flow, "flow", "", "flow name")
+	showCmd.Flags().IntVar(&c.depth, "depth", 0, "relative tree depth")
 	showCmd.Flags().BoolVar(&c.showTrigger, "show-trigger", false, "show trigger")
 	showCmd.Flags().BoolVar(&c.showParameter, "show-parameter", false, "show parameters")
-	showCmd.Flags().BoolVar(&c.showLimit, "show-limit", true, "show limits")
-	showCmd.Flags().BoolVar(&c.showEvent, "show-event", true, "show events")
-	showCmd.Flags().BoolVar(&c.showMeter, "show-meter", true, "show meters")
+	showCmd.Flags().BoolVar(&c.showLimit, "show-limit", false, "show limits")
+	showCmd.Flags().BoolVar(&c.showEvent, "show-event", false, "show events")
+	showCmd.Flags().BoolVar(&c.showMeter, "show-meter", false, "show meters")
 	showCmd.Flags().BoolVar(&c.showAll, "show-all", false, "show all items, ignore other show options")
 
 	c.cmd = showCmd
@@ -61,8 +69,6 @@ func (mc *showCommand) runCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s:%s show\n", client.Host, client.Port)
-
 	if mc.showAll {
 		mc.showTrigger = true
 		mc.showParameter = true
@@ -71,12 +77,14 @@ func (mc *showCommand) runCommand(cmd *cobra.Command, args []string) error {
 		mc.showMeter = true
 	}
 
-	_, err = client.RunQueryShow(
-		mc.showTrigger,
-		mc.showParameter,
-		mc.showLimit,
-		mc.showEvent,
-		mc.showMeter)
+	selection := common.QuerySelection{ScopePath: mc.scope, FlowName: mc.flow}
+	if cmd != nil && cmd.Flags().Changed("depth") {
+		selection.Depth = &mc.depth
+	}
+	_, err = client.RunInitialQueryShow(selection, common.QueryShowOptions{
+		Trigger: mc.showTrigger, Parameter: mc.showParameter,
+		Limit: mc.showLimit, Event: mc.showEvent, Meter: mc.showMeter,
+	}, os.Stdout)
 	return err
 }
 

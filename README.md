@@ -55,7 +55,7 @@ scripts).
 
 | Command | Purpose |
 | --- | --- |
-| `show` | print the node tree and root service status, including current task attempts and file references (`--show-trigger`, `--show-parameter`, `--show-all`, ...) |
+| `show` | print a paged workflow summary; select a subtree with `--scope` or `--flow`, limit depth with `--depth`, and request details with `--show-trigger`, `--show-parameter`, `--show-all`, ... |
 | `ping` | health check; needs no credentials |
 | `coroutine` | list the coroutines on the server's event loop |
 | `server-status` | show service status, halt causes, and checkpoint recovery summary |
@@ -261,19 +261,19 @@ CLIs and both transports against a real Python server.
 
 ### Safe show queries
 
-`show` prints a connection banner followed by the server's JSON projection over
-both HTTP and gRPC. Nodes carry
-`node_kind`, safe `generated_parameters`, and `redacted_parameters`; root user
-parameters are retained. Unknown execution type labels require no local plugin.
-Parameters matching built-in credential names or the server's
-`security.query_redacted_parameters` list have the value `<redacted>`. The name
-list distinguishes redaction from a literal value. This view is for inspection,
-not a definition or checkpoint document.
+`show` reads the QueryDocument v1 summary through bounded pages over HTTP or
+gRPC and prints a compact tree. It publishes output only after the complete
+snapshot succeeds. `--scope /flow/task`, `--flow flow`, and `--depth 1` select a
+smaller view. Detail flags request live sampled fields after the summary;
+request details on at most 4096 nodes per call. Large field values are read in
+verified chunks. Unknown execution types require no local plugin. Parameters
+matching built-in credential names or the server's
+`security.query_redacted_parameters` list display `<redacted>`. The summary is
+for inspection, not a definition or checkpoint document.
 
-The R1-16 local synthetic 10k-task `show` response was about 7.85 MB and
-exceeded the default gRPC client's 4 MiB receive limit. That sample has no
-valid gRPC `show` latency; smaller-tree measurements do not establish a
-supported production scale or SLO.
+The former full JSON `show` response exceeded the default gRPC client's 4 MiB
+receive limit at 10k tasks. The paged summary has been exercised at 100k tasks
+over both transports. This single-run check is not a production latency SLO.
 
 Run `UV_CACHE_DIR=/tmp/takler-uv-cache make show-contract` to exercise both CLIs
 against the paired Python server over HTTP and gRPC, including unknown task types

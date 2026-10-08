@@ -112,6 +112,51 @@ var nonRetryableExitCodeByHTTPStatus = map[int]int{
 	404: ExitRequestError,
 	405: ExitRequestError,
 	415: ExitRequestError,
+	413: ExitRequestError,
+}
+
+// QueryDocument posts QueryDocument v1 JSON to its HTTP query route.
+func (t *HttpTransport) QueryDocument(ctx context.Context, kind string, raw []byte) ([]byte, error) {
+	if t.client == nil {
+		return nil, NewExitError(ExitRequestError, "query transport is not open")
+	}
+	route := map[string]string{
+		"capabilities_request": "capabilities",
+		"page_request":         "pages",
+		"detail_request":       "details",
+		"chunk_request":        "chunks",
+	}[kind]
+	if route == "" {
+		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.baseURL+"/v1/query/"+route, bytes.NewReader(raw))
+	if err != nil {
+		return nil, fmt.Errorf("build query request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
+		for key, values := range md {
+			for _, value := range values {
+				request.Header.Add(key, value)
+			}
+		}
+	}
+	response, err := t.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, &httpStatusError{statusCode: response.StatusCode, details: httpResponseDetails(response)}
+	}
+	if !jsonContentType(response.Header.Get("Content-Type")) {
+		return nil, &httpResponseError{err: errors.New("invalid query response content type")}
+	}
+	answer, err := io.ReadAll(io.LimitReader(response.Body, QueryMaxPageBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	return answer, nil
 }
 
 // httpStatusError is one attempt answered with a non-200 HTTP status. It is an
