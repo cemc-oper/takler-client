@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract replace-contract wire-check check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract replace-contract query-a-contract wire-check check
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -79,3 +79,6 @@ wire-check:
 .PHONY: show-contract
 show-contract: all
 	bash scripts/show_contract.sh
+
+query-a-contract: all
+	bash scripts/query_a_contract.sh
