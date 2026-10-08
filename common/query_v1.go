@@ -46,11 +46,12 @@ type QueryPageRequest struct {
 	Cursor        *string  `json:"cursor"`
 }
 type QueryNode struct {
-	Path      string `json:"path"`
-	NodeKind  string `json:"node_kind"`
-	TypeID    string `json:"type_id"`
-	Status    string `json:"status"`
-	Suspended bool   `json:"suspended"`
+	Path      string  `json:"path"`
+	NodeKind  string  `json:"node_kind"`
+	TypeID    string  `json:"type_id"`
+	Status    string  `json:"status"`
+	Suspended bool    `json:"suspended"`
+	AttemptID *string `json:"attempt_id,omitempty"`
 }
 type QueryPage struct {
 	Kind            string            `json:"kind"`
@@ -501,7 +502,7 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 			}
 		}
 		for _, node := range v.Nodes {
-			if !validQueryPath(node.Path) || !queryKinds[node.NodeKind] || !queryStatuses[node.Status] || node.TypeID == "" || seen[node.Path] {
+			if !validQueryPath(node.Path) || !queryKinds[node.NodeKind] || !queryStatuses[node.Status] || node.TypeID == "" || seen[node.Path] || node.AttemptID != nil && (node.NodeKind != "task" || *node.AttemptID == "") {
 				return nil, errors.New("invalid node")
 			}
 			seen[node.Path] = true
