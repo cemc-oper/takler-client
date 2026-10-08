@@ -116,6 +116,8 @@ func (t *GrpcTransport) QueryDocument(ctx context.Context, kind string, raw []by
 		response, err = t.queryClient.ReadDetail(ctx, request)
 	case "chunk_request":
 		response, err = t.queryClient.ReadDetailChunk(ctx, request)
+	case "since_request":
+		response, err = t.queryClient.ReadSince(ctx, request)
 	default:
 		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
 	}

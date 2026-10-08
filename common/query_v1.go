@@ -59,6 +59,7 @@ type QueryPage struct {
 	SessionID       string            `json:"session_id"`
 	QueryID         string            `json:"query_id"`
 	SnapshotID      string            `json:"snapshot_id"`
+	BaseRevision    *int64            `json:"base_revision,omitempty"`
 	AsOf            string            `json:"as_of"`
 	ExpiresAt       string            `json:"expires_at"`
 	PageIndex       int               `json:"page_index"`
@@ -122,11 +123,61 @@ type QueryFailure struct {
 	Message       string  `json:"message"`
 	ResetScope    *string `json:"reset_scope"`
 }
+type QuerySinceRequest struct {
+	Kind          string   `json:"kind"`
+	SchemaVersion int      `json:"schema_version"`
+	ScopePath     *string  `json:"scope_path"`
+	FlowName      *string  `json:"flow_name"`
+	Depth         *int     `json:"depth"`
+	FieldGroups   []string `json:"field_groups"`
+	Cursor        *string  `json:"cursor"`
+	SessionID     string   `json:"session_id"`
+	QueryID       string   `json:"query_id"`
+	SinceRevision int64    `json:"since_revision"`
+}
+type QuerySince struct {
+	Kind           string           `json:"kind"`
+	SchemaVersion  int              `json:"schema_version"`
+	SessionID      string           `json:"session_id"`
+	QueryID        string           `json:"query_id"`
+	BatchID        string           `json:"batch_id"`
+	FromRevision   int64            `json:"from_revision"`
+	TargetRevision int64            `json:"target_revision"`
+	AsOf           string           `json:"as_of"`
+	ExpiresAt      string           `json:"expires_at"`
+	PageIndex      int              `json:"page_index"`
+	Complete       bool             `json:"complete"`
+	NextCursor     *string          `json:"next_cursor"`
+	Unchanged      bool             `json:"unchanged"`
+	Operations     []QueryOperation `json:"operations"`
+}
+type QueryOperation struct {
+	Op             string          `json:"op"`
+	Path           string          `json:"path"`
+	FlowGeneration *string         `json:"flow_generation,omitempty"`
+	AttemptID      *string         `json:"attempt_id,omitempty"`
+	Node           *QueryNode      `json:"node,omitempty"`
+	Group          string          `json:"group,omitempty"`
+	Value          json.RawMessage `json:"value,omitempty"`
+	Pointer        string          `json:"pointer,omitempty"`
+	Reason         string          `json:"reason,omitempty"`
+}
+type QueryReset struct {
+	Kind          string `json:"kind"`
+	SchemaVersion int    `json:"schema_version"`
+	SessionID     string `json:"session_id"`
+	QueryID       string `json:"query_id"`
+	SinceRevision int64  `json:"since_revision"`
+	ResetScope    string `json:"reset_scope"`
+	Reason        string `json:"reason"`
+}
 
 var queryKinds = map[string]bool{"bunch": true, "flow": true, "container": true, "task": true}
 var queryStatuses = map[string]bool{"unknown": true, "queued": true, "submitted": true, "active": true, "complete": true, "aborted": true}
 var queryGroups = map[string]bool{"summary": true, "definition": true, "parameters": true, "runtime": true, "artifacts": true, "service": true}
 var queryErrorCodes = map[string]bool{"invalid_request": true, "unsupported_version": true, "unsupported_capability": true, "permission_denied": true, "stale_identity": true, "snapshot_expired": true, "resource_exhausted": true, "field_too_large": true, "internal_error": true}
+var queryResetReasons = map[string]bool{"history_expired": true, "identity_changed": true, "scope_changed": true, "structure_changed": true, "budget_exceeded": true, "session_changed": true}
+var queryInvalidateReasons = map[string]bool{"structure_changed": true, "inheritance_changed": true, "identity_changed": true}
 var queryDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var queryUTC = regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$`)
 
@@ -384,6 +435,183 @@ func queryDecode(raw []byte, out any) error {
 	}
 	return errors.New("trailing data")
 }
+func queryOperationIdentity(obj map[string]any) bool {
+	path, ok := obj["path"].(string)
+	if !ok || !validQueryPath(path) {
+		return false
+	}
+	generation, present := obj["flow_generation"]
+	if !present {
+		return false
+	}
+	if path == "/" {
+		return generation == nil
+	}
+	text, ok := generation.(string)
+	return ok && text != ""
+}
+func queryFieldPointer(pointer string) (string, string, string, bool) {
+	parts := strings.Split(pointer, "/")
+	if (len(parts) != 4 && len(parts) != 5) || parts[0] != "" || parts[1] != "groups" || !queryGroupFields[parts[2]][strings.ReplaceAll(strings.ReplaceAll(parts[3], "~1", "/"), "~0", "~")] {
+		return "", "", "", false
+	}
+	for _, part := range parts[3:] {
+		if part == "" {
+			return "", "", "", false
+		}
+		for i := 0; i < len(part); i++ {
+			if part[i] == '~' && (i+1 == len(part) || part[i+1] != '0' && part[i+1] != '1') {
+				return "", "", "", false
+			}
+			if part[i] == '~' {
+				i++
+			}
+		}
+	}
+	field := strings.ReplaceAll(strings.ReplaceAll(parts[3], "~1", "/"), "~0", "~")
+	if len(parts) == 5 {
+		if parts[2] != "parameters" || field != "user" {
+			return "", "", "", false
+		}
+		return parts[2], field, strings.ReplaceAll(strings.ReplaceAll(parts[4], "~1", "/"), "~0", "~"), true
+	}
+	return parts[2], field, "", true
+}
+func validQuerySetValue(pointer string, value any) bool {
+	group, field, name, ok := queryFieldPointer(pointer)
+	if !ok {
+		return false
+	}
+	if name != "" {
+		item, ok := value.(map[string]any)
+		return ok && item["name"] == name && validQueryParameter(item)
+	}
+	fields := map[string]any{field: value}
+	if group == "parameters" && field != "user" {
+		fields["user"] = []any{}
+	}
+	if group == "service" {
+		defaults := map[string]any{"status": "running", "halt_causes": []any{}, "last_checkpoint_at": nil, "restore_summary": nil, "generated_defaults": []any{}}
+		for key, val := range fields {
+			defaults[key] = val
+		}
+		fields = defaults
+	}
+	return validQueryGroup(group, fields)
+}
+func validQueryOperation(raw json.RawMessage) bool {
+	value, err := strictWireJSON(raw)
+	if err != nil {
+		return false
+	}
+	obj, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	op, ok := obj["op"].(string)
+	if !ok {
+		return false
+	}
+	var required []string
+	switch op {
+	case "upsert_summary":
+		required = []string{"op", "path", "flow_generation", "node"}
+	case "replace_group":
+		required = []string{"op", "path", "flow_generation", "attempt_id", "group", "value"}
+	case "set_field":
+		required = []string{"op", "path", "flow_generation", "attempt_id", "pointer", "value"}
+	case "clear_field":
+		required = []string{"op", "path", "flow_generation", "attempt_id", "pointer"}
+	case "remove_subtree":
+		required = []string{"op", "path", "flow_generation"}
+	case "invalidate_scope":
+		required = []string{"op", "path", "reason"}
+	default:
+		return false
+	}
+	if len(obj) != len(required) {
+		return false
+	}
+	for _, key := range required {
+		if _, exists := obj[key]; !exists {
+			return false
+		}
+	}
+	switch op {
+	case "upsert_summary":
+		if !queryOperationIdentity(obj) {
+			return false
+		}
+		node, ok := obj["node"].(map[string]any)
+		if !ok || len(node) < 5 || len(node) > 6 || node["path"] != obj["path"] {
+			return false
+		}
+		for _, key := range []string{"path", "node_kind", "type_id", "status", "suspended"} {
+			if _, present := node[key]; !present {
+				return false
+			}
+		}
+		for key := range node {
+			if key != "path" && key != "node_kind" && key != "type_id" && key != "status" && key != "suspended" && key != "attempt_id" {
+				return false
+			}
+		}
+		kind, kindOK := node["node_kind"].(string)
+		status, statusOK := node["status"].(string)
+		typeID, typeOK := node["type_id"].(string)
+		_, suspendedOK := node["suspended"].(bool)
+		if !kindOK || !statusOK || !typeOK || !suspendedOK || !queryKinds[kind] || !queryStatuses[status] || typeID == "" {
+			return false
+		}
+		if attempt, exists := node["attempt_id"]; exists && attempt != nil {
+			text, ok := attempt.(string)
+			if !ok || text == "" || kind != "task" {
+				return false
+			}
+		}
+	case "replace_group", "set_field", "clear_field":
+		if !queryOperationIdentity(obj) || !queryOptionalString(obj["attempt_id"]) || obj["attempt_id"] == "" {
+			return false
+		}
+		if op == "replace_group" {
+			group, ok := obj["group"].(string)
+			fields, isMap := obj["value"].(map[string]any)
+			return ok && isMap && validQueryGroup(group, fields)
+		}
+		pointer, ok := obj["pointer"].(string)
+		if !ok {
+			return false
+		}
+		if op == "set_field" {
+			return validQuerySetValue(pointer, obj["value"])
+		}
+		group, field, name, ok := queryFieldPointer(pointer)
+		if !ok {
+			return false
+		}
+		if name != "" {
+			return true
+		}
+		if group == "parameters" && field == "user" {
+			return false
+		}
+		if group == "service" {
+			for _, required := range []string{"status", "halt_causes", "last_checkpoint_at", "restore_summary", "generated_defaults"} {
+				if field == required {
+					return false
+				}
+			}
+		}
+		return true
+	case "remove_subtree":
+		return queryOperationIdentity(obj) && obj["path"] != "/"
+	case "invalidate_scope":
+		path, ok := obj["path"].(string)
+		reason, reasonOK := obj["reason"].(string)
+		return ok && validQueryPath(path) && reasonOK && queryInvalidateReasons[reason]
+	}
+	return true
+}
 func DecodeQueryV1(raw []byte, expected string) (any, error) {
 	if len(raw) > QueryMaxPageBytes {
 		return nil, errors.New("query document too large")
@@ -414,6 +642,9 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		"chunk_request":        {"kind", "schema_version", "blob_id", "offset"},
 		"chunk":                {"kind", "schema_version", "blob_id", "offset", "total_bytes", "sha256", "data_base64", "complete"},
 		"error":                {"kind", "schema_version", "code", "message"},
+		"since_request":        {"kind", "schema_version", "field_groups", "session_id", "query_id", "since_revision"},
+		"since":                {"kind", "schema_version", "session_id", "query_id", "batch_id", "from_revision", "target_revision", "as_of", "expires_at", "page_index", "complete", "next_cursor", "unchanged", "operations"},
+		"reset":                {"kind", "schema_version", "session_id", "query_id", "since_revision", "reset_scope", "reason"},
 	}[kind]
 	if required == nil {
 		return nil, errors.New("unknown query kind")
@@ -443,6 +674,12 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		out = &QueryChunk{}
 	case "error":
 		out = &QueryFailure{}
+	case "since_request":
+		out = &QuerySinceRequest{}
+	case "since":
+		out = &QuerySince{}
+	case "reset":
+		out = &QueryReset{}
 	default:
 		return nil, errors.New("unknown query kind")
 	}
@@ -454,7 +691,7 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		if _, ok := obj["since"].(bool); !ok {
 			return nil, errors.New("invalid capabilities since")
 		}
-		if !v.Snapshot || !v.Detail || v.Since || v.MaxPageNodes != QueryMaxPageNodes || v.MaxDecodedPageBytes != QueryMaxPageBytes || v.MaxChunkBytes != QueryMaxChunkBytes {
+		if !v.Snapshot || !v.Detail || v.MaxPageNodes != QueryMaxPageNodes || v.MaxDecodedPageBytes != QueryMaxPageBytes || v.MaxChunkBytes != QueryMaxChunkBytes {
 			return nil, errors.New("invalid capabilities")
 		}
 	case *QueryPageRequest:
@@ -492,7 +729,7 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 				return nil, errors.New("invalid node suspended")
 			}
 		}
-		if v.SessionID == "" || v.QueryID == "" || v.SnapshotID == "" || !validQueryUTC(v.AsOf) || !validQueryUTC(v.ExpiresAt) || v.PageIndex < 0 || v.TotalNodes != nil && *v.TotalNodes < 0 || len(v.Nodes) > QueryMaxPageNodes || v.Complete != (v.NextCursor == nil) || !v.Complete && (v.NextCursor == nil || *v.NextCursor == "" || len(v.Nodes) == 0) {
+		if v.SessionID == "" || v.QueryID == "" || v.SnapshotID == "" || !validQueryUTC(v.AsOf) || !validQueryUTC(v.ExpiresAt) || v.BaseRevision != nil && *v.BaseRevision < 1 || v.PageIndex < 0 || v.TotalNodes != nil && *v.TotalNodes < 0 || len(v.Nodes) > QueryMaxPageNodes || v.Complete != (v.NextCursor == nil) || !v.Complete && (v.NextCursor == nil || *v.NextCursor == "" || len(v.Nodes) == 0) {
 			return nil, errors.New("invalid page")
 		}
 		seen := map[string]bool{}
@@ -543,6 +780,51 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 	case *QueryFailure:
 		if !queryErrorCodes[v.Code] || v.ResetScope != nil && !validQueryPath(*v.ResetScope) {
 			return nil, errors.New("invalid query error")
+		}
+	case *QuerySinceRequest:
+		page := QueryPageRequest{ScopePath: v.ScopePath, FlowName: v.FlowName, Depth: v.Depth, FieldGroups: v.FieldGroups, Cursor: v.Cursor}
+		if v.SessionID == "" || v.QueryID == "" || v.SinceRevision < 1 || page.ScopePath != nil && page.FlowName != nil || page.ScopePath != nil && !validQueryPath(*page.ScopePath) || page.FlowName != nil && (*page.FlowName == "" || !validQueryPath("/"+*page.FlowName) || strings.Contains(*page.FlowName, "/")) || page.Depth != nil && *page.Depth < 0 || !validQueryGroups(page.FieldGroups, false) || page.Cursor != nil && *page.Cursor == "" {
+			return nil, errors.New("invalid since request")
+		}
+	case *QuerySince:
+		if _, ok := obj["complete"].(bool); !ok {
+			return nil, errors.New("invalid since complete")
+		}
+		if _, ok := obj["unchanged"].(bool); !ok {
+			return nil, errors.New("invalid since unchanged")
+		}
+		if _, ok := obj["operations"].([]any); !ok {
+			return nil, errors.New("invalid since operations")
+		}
+		if v.SessionID == "" || v.QueryID == "" || v.BatchID == "" || v.FromRevision < 1 || v.TargetRevision < v.FromRevision || !validQueryUTC(v.AsOf) || !validQueryUTC(v.ExpiresAt) || v.PageIndex < 0 || v.Complete != (v.NextCursor == nil) || !v.Complete && (v.NextCursor == nil || *v.NextCursor == "" || len(v.Operations) == 0) || v.Unchanged != (v.TargetRevision == v.FromRevision) || v.Unchanged && (len(v.Operations) != 0 || v.PageIndex != 0 || !v.Complete) {
+			return nil, errors.New("invalid since page")
+		}
+		asOf, _ := time.Parse(time.RFC3339Nano, v.AsOf)
+		expires, _ := time.Parse(time.RFC3339Nano, v.ExpiresAt)
+		if !expires.After(asOf) {
+			return nil, errors.New("invalid since expiry")
+		}
+		seen := map[string]bool{}
+		for _, value := range obj["operations"].([]any) {
+			operation, err := json.Marshal(value)
+			if err != nil || !validQueryOperation(operation) {
+				return nil, errors.New("invalid since operation")
+			}
+			op := value.(map[string]any)
+			identity := op["op"].(string) + "\x00" + op["path"].(string)
+			if op["op"] == "set_field" || op["op"] == "clear_field" {
+				identity = "field\x00" + op["path"].(string) + "\x00" + op["pointer"].(string)
+			} else if op["op"] == "replace_group" {
+				identity += "\x00" + op["group"].(string)
+			}
+			if seen[identity] {
+				return nil, errors.New("duplicate since operation")
+			}
+			seen[identity] = true
+		}
+	case *QueryReset:
+		if v.SessionID == "" || v.QueryID == "" || v.SinceRevision < 1 || !validQueryPath(v.ResetScope) || !queryResetReasons[v.Reason] {
+			return nil, errors.New("invalid reset")
 		}
 	}
 	return out, nil

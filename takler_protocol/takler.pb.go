@@ -1646,7 +1646,8 @@ func (x *BatchResponse) GetResults() []*BatchItemResult {
 }
 
 // R2 QueryDocument v1 is the same strict UTF-8 JSON on HTTP and gRPC.
-// These methods are protocol declarations; R2-05/07 provide the query engine.
+// ReadSince remains unavailable until revision tracking and the change window
+// are connected. The other methods serve the initial query and live detail.
 // They are separate from legacy TaklerServer methods so old command clients
 // and their exact method/privilege table remain stable.
 type QueryDocumentPayload struct {
@@ -1983,7 +1984,7 @@ var file_takler_protocol_takler_proto_rawDesc = []byte{
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x53,
 	0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x32,
-	0x8d, 0x03, 0x0a, 0x0b, 0x54, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12,
+	0xea, 0x03, 0x0a, 0x0b, 0x54, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12,
 	0x61, 0x0a, 0x0f, 0x47, 0x65, 0x74, 0x43, 0x61, 0x70, 0x61, 0x62, 0x69, 0x6c, 0x69, 0x74, 0x69,
 	0x65, 0x73, 0x12, 0x25, 0x2e, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x44, 0x6f, 0x63, 0x75, 0x6d, 0x65,
@@ -2007,11 +2008,17 @@ var file_takler_protocol_takler_proto_rawDesc = []byte{
 	0x6c, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x44, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74, 0x50,
 	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x1a, 0x25, 0x2e, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x44, 0x6f,
-	0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x00, 0x42,
-	0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x65,
-	0x6d, 0x63, 0x2d, 0x6f, 0x70, 0x65, 0x72, 0x2f, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x2d, 0x63,
-	0x6c, 0x69, 0x65, 0x6e, 0x74, 0x2f, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x00, 0x12,
+	0x5b, 0x0a, 0x09, 0x52, 0x65, 0x61, 0x64, 0x53, 0x69, 0x6e, 0x63, 0x65, 0x12, 0x25, 0x2e, 0x74,
+	0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x51,
+	0x75, 0x65, 0x72, 0x79, 0x44, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74, 0x50, 0x61, 0x79, 0x6c,
+	0x6f, 0x61, 0x64, 0x1a, 0x25, 0x2e, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x44, 0x6f, 0x63, 0x75, 0x6d,
+	0x65, 0x6e, 0x74, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x00, 0x42, 0x34, 0x5a, 0x32,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x65, 0x6d, 0x63, 0x2d,
+	0x6f, 0x70, 0x65, 0x72, 0x2f, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x2d, 0x63, 0x6c, 0x69, 0x65,
+	0x6e, 0x74, 0x2f, 0x74, 0x61, 0x6b, 0x6c, 0x65, 0x72, 0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
+	0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2098,32 +2105,34 @@ var file_takler_protocol_takler_proto_depIdxs = []int32{
 	31, // 31: takler_protocol.TaklerQuery.ReadPage:input_type -> takler_protocol.QueryDocumentPayload
 	31, // 32: takler_protocol.TaklerQuery.ReadDetail:input_type -> takler_protocol.QueryDocumentPayload
 	31, // 33: takler_protocol.TaklerQuery.ReadDetailChunk:input_type -> takler_protocol.QueryDocumentPayload
-	2,  // 34: takler_protocol.TaklerServer.RunCommandInit:output_type -> takler_protocol.ServiceResponse
-	2,  // 35: takler_protocol.TaklerServer.RunCommandComplete:output_type -> takler_protocol.ServiceResponse
-	2,  // 36: takler_protocol.TaklerServer.RunCommandAbort:output_type -> takler_protocol.ServiceResponse
-	2,  // 37: takler_protocol.TaklerServer.RunCommandEvent:output_type -> takler_protocol.ServiceResponse
-	2,  // 38: takler_protocol.TaklerServer.RunCommandMeter:output_type -> takler_protocol.ServiceResponse
-	30, // 39: takler_protocol.TaklerServer.RunCommandRequeue:output_type -> takler_protocol.BatchResponse
-	30, // 40: takler_protocol.TaklerServer.RunCommandSuspend:output_type -> takler_protocol.BatchResponse
-	30, // 41: takler_protocol.TaklerServer.RunCommandResume:output_type -> takler_protocol.BatchResponse
-	30, // 42: takler_protocol.TaklerServer.RunCommandRun:output_type -> takler_protocol.BatchResponse
-	30, // 43: takler_protocol.TaklerServer.RunCommandForce:output_type -> takler_protocol.BatchResponse
-	30, // 44: takler_protocol.TaklerServer.RunCommandFreeDep:output_type -> takler_protocol.BatchResponse
-	2,  // 45: takler_protocol.TaklerServer.RunCommandReplace:output_type -> takler_protocol.ServiceResponse
-	2,  // 46: takler_protocol.TaklerServer.RunCommandLoad:output_type -> takler_protocol.ServiceResponse
-	30, // 47: takler_protocol.TaklerServer.RunCommandBegin:output_type -> takler_protocol.BatchResponse
-	28, // 48: takler_protocol.TaklerServer.RunCommandServerHalt:output_type -> takler_protocol.ServerStatusResponse
-	28, // 49: takler_protocol.TaklerServer.RunCommandServerResume:output_type -> takler_protocol.ServerStatusResponse
-	21, // 50: takler_protocol.TaklerServer.RunRequestShow:output_type -> takler_protocol.ShowResponse
-	23, // 51: takler_protocol.TaklerServer.RunRequestPing:output_type -> takler_protocol.PingResponse
-	26, // 52: takler_protocol.TaklerServer.QueryCoroutine:output_type -> takler_protocol.CoroutineResponse
-	28, // 53: takler_protocol.TaklerServer.RunRequestServerStatus:output_type -> takler_protocol.ServerStatusResponse
-	31, // 54: takler_protocol.TaklerQuery.GetCapabilities:output_type -> takler_protocol.QueryDocumentPayload
-	31, // 55: takler_protocol.TaklerQuery.ReadPage:output_type -> takler_protocol.QueryDocumentPayload
-	31, // 56: takler_protocol.TaklerQuery.ReadDetail:output_type -> takler_protocol.QueryDocumentPayload
-	31, // 57: takler_protocol.TaklerQuery.ReadDetailChunk:output_type -> takler_protocol.QueryDocumentPayload
-	34, // [34:58] is the sub-list for method output_type
-	10, // [10:34] is the sub-list for method input_type
+	31, // 34: takler_protocol.TaklerQuery.ReadSince:input_type -> takler_protocol.QueryDocumentPayload
+	2,  // 35: takler_protocol.TaklerServer.RunCommandInit:output_type -> takler_protocol.ServiceResponse
+	2,  // 36: takler_protocol.TaklerServer.RunCommandComplete:output_type -> takler_protocol.ServiceResponse
+	2,  // 37: takler_protocol.TaklerServer.RunCommandAbort:output_type -> takler_protocol.ServiceResponse
+	2,  // 38: takler_protocol.TaklerServer.RunCommandEvent:output_type -> takler_protocol.ServiceResponse
+	2,  // 39: takler_protocol.TaklerServer.RunCommandMeter:output_type -> takler_protocol.ServiceResponse
+	30, // 40: takler_protocol.TaklerServer.RunCommandRequeue:output_type -> takler_protocol.BatchResponse
+	30, // 41: takler_protocol.TaklerServer.RunCommandSuspend:output_type -> takler_protocol.BatchResponse
+	30, // 42: takler_protocol.TaklerServer.RunCommandResume:output_type -> takler_protocol.BatchResponse
+	30, // 43: takler_protocol.TaklerServer.RunCommandRun:output_type -> takler_protocol.BatchResponse
+	30, // 44: takler_protocol.TaklerServer.RunCommandForce:output_type -> takler_protocol.BatchResponse
+	30, // 45: takler_protocol.TaklerServer.RunCommandFreeDep:output_type -> takler_protocol.BatchResponse
+	2,  // 46: takler_protocol.TaklerServer.RunCommandReplace:output_type -> takler_protocol.ServiceResponse
+	2,  // 47: takler_protocol.TaklerServer.RunCommandLoad:output_type -> takler_protocol.ServiceResponse
+	30, // 48: takler_protocol.TaklerServer.RunCommandBegin:output_type -> takler_protocol.BatchResponse
+	28, // 49: takler_protocol.TaklerServer.RunCommandServerHalt:output_type -> takler_protocol.ServerStatusResponse
+	28, // 50: takler_protocol.TaklerServer.RunCommandServerResume:output_type -> takler_protocol.ServerStatusResponse
+	21, // 51: takler_protocol.TaklerServer.RunRequestShow:output_type -> takler_protocol.ShowResponse
+	23, // 52: takler_protocol.TaklerServer.RunRequestPing:output_type -> takler_protocol.PingResponse
+	26, // 53: takler_protocol.TaklerServer.QueryCoroutine:output_type -> takler_protocol.CoroutineResponse
+	28, // 54: takler_protocol.TaklerServer.RunRequestServerStatus:output_type -> takler_protocol.ServerStatusResponse
+	31, // 55: takler_protocol.TaklerQuery.GetCapabilities:output_type -> takler_protocol.QueryDocumentPayload
+	31, // 56: takler_protocol.TaklerQuery.ReadPage:output_type -> takler_protocol.QueryDocumentPayload
+	31, // 57: takler_protocol.TaklerQuery.ReadDetail:output_type -> takler_protocol.QueryDocumentPayload
+	31, // 58: takler_protocol.TaklerQuery.ReadDetailChunk:output_type -> takler_protocol.QueryDocumentPayload
+	31, // 59: takler_protocol.TaklerQuery.ReadSince:output_type -> takler_protocol.QueryDocumentPayload
+	35, // [35:60] is the sub-list for method output_type
+	10, // [10:35] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,6 +10,12 @@ import (
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 	"google.golang.org/protobuf/proto"
 )
+
+func TestQueryV1IncrementalDocumentBudget(t *testing.T) {
+	if _, err := DecodeQueryV1(bytes.Repeat([]byte(" "), QueryMaxPageBytes+1), "since"); err == nil {
+		t.Fatal("oversized incremental document was accepted")
+	}
+}
 
 func TestQueryV1SharedVectors(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("testdata", "query_v1_vectors.json"))
@@ -34,6 +41,12 @@ func TestQueryV1SharedVectors(t *testing.T) {
 			}
 			if !tc.Valid {
 				return
+			}
+			if tc.ID == "valid_since_all_operations" {
+				batch, ok := value.(*QuerySince)
+				if !ok || len(batch.Operations) != 7 || batch.Operations[2].Op != "set_field" || string(batch.Operations[2].Value) != "null" {
+					t.Fatalf("typed operations = %#v", value)
+				}
 			}
 			carrier, err := QueryPayload([]byte(tc.Raw), tc.Kind)
 			if err != nil {

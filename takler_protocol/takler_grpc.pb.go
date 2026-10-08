@@ -849,6 +849,7 @@ const (
 	TaklerQuery_ReadPage_FullMethodName        = "/takler_protocol.TaklerQuery/ReadPage"
 	TaklerQuery_ReadDetail_FullMethodName      = "/takler_protocol.TaklerQuery/ReadDetail"
 	TaklerQuery_ReadDetailChunk_FullMethodName = "/takler_protocol.TaklerQuery/ReadDetailChunk"
+	TaklerQuery_ReadSince_FullMethodName       = "/takler_protocol.TaklerQuery/ReadSince"
 )
 
 // TaklerQueryClient is the client API for TaklerQuery service.
@@ -859,6 +860,7 @@ type TaklerQueryClient interface {
 	ReadPage(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 	ReadDetail(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 	ReadDetailChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadSince(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 }
 
 type taklerQueryClient struct {
@@ -909,6 +911,16 @@ func (c *taklerQueryClient) ReadDetailChunk(ctx context.Context, in *QueryDocume
 	return out, nil
 }
 
+func (c *taklerQueryClient) ReadSince(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadSince_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TaklerQueryServer is the server API for TaklerQuery service.
 // All implementations must embed UnimplementedTaklerQueryServer
 // for forward compatibility.
@@ -917,6 +929,7 @@ type TaklerQueryServer interface {
 	ReadPage(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	ReadDetail(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	ReadDetailChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadSince(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	mustEmbedUnimplementedTaklerQueryServer()
 }
 
@@ -938,6 +951,9 @@ func (UnimplementedTaklerQueryServer) ReadDetail(context.Context, *QueryDocument
 }
 func (UnimplementedTaklerQueryServer) ReadDetailChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadDetailChunk not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadSince(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadSince not implemented")
 }
 func (UnimplementedTaklerQueryServer) mustEmbedUnimplementedTaklerQueryServer() {}
 func (UnimplementedTaklerQueryServer) testEmbeddedByValue()                     {}
@@ -1032,6 +1048,24 @@ func _TaklerQuery_ReadDetailChunk_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaklerQuery_ReadSince_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadSince(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadSince_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadSince(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TaklerQuery_ServiceDesc is the grpc.ServiceDesc for TaklerQuery service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1054,6 +1088,10 @@ var TaklerQuery_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReadDetailChunk",
 			Handler:    _TaklerQuery_ReadDetailChunk_Handler,
+		},
+		{
+			MethodName: "ReadSince",
+			Handler:    _TaklerQuery_ReadSince_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

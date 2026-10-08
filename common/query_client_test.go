@@ -68,6 +68,22 @@ func queryTestPage(index int, complete bool, paths ...QueryNode) QueryPage {
 	return page
 }
 
+func TestQueryResetIsTypedOutcome(t *testing.T) {
+	reset := QueryReset{Kind: "reset", SchemaVersion: 1, SessionID: "session", QueryID: "query",
+		SinceRevision: 7, ResetScope: "/flow", Reason: "history_expired"}
+	client, transport := queryTestClient(t, reset)
+	scope := "/flow"
+	request := QuerySinceRequest{Kind: "since_request", SchemaVersion: 1, ScopePath: &scope,
+		FieldGroups: []string{"summary"}, SessionID: "session", QueryID: "query", SinceRevision: 7}
+	value, err := client.queryDocument(transport, "since_request", request, "since")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result, ok := value.(*QueryReset); !ok || result.Reason != "history_expired" {
+		t.Fatalf("reset = %#v", value)
+	}
+}
+
 func TestQuerySnapshotPublishesAfterCompletePages(t *testing.T) {
 	first := queryTestPage(0, false, queryTestNode("/", "bunch"), queryTestNode("/flow", "flow"))
 	second := queryTestPage(1, true, queryTestNode("/flow/task", "task"))

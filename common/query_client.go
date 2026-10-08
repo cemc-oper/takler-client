@@ -110,6 +110,9 @@ func (c *TaklerServiceClient) queryDocument(transport queryDocumentTransport, ki
 	if failure, ok := decoded.(*QueryFailure); ok {
 		return nil, &QueryFailureError{Code: failure.Code, Message: failure.Message, ResetScope: failure.ResetScope}
 	}
+	if _, reset := decoded.(*QueryReset); reset && expected == "since" {
+		return decoded, nil
+	}
 	if got := queryKind(decoded); got != expected {
 		return nil, queryProtocolError("unexpected query response kind")
 	}
@@ -126,6 +129,10 @@ func queryKind(value any) string {
 		return "detail"
 	case *QueryChunk:
 		return "chunk"
+	case *QuerySince:
+		return "since"
+	case *QueryReset:
+		return "reset"
 	}
 	return ""
 }

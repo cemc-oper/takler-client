@@ -125,6 +125,7 @@ func (t *HttpTransport) QueryDocument(ctx context.Context, kind string, raw []by
 		"page_request":         "pages",
 		"detail_request":       "details",
 		"chunk_request":        "chunks",
+		"since_request":        "since",
 	}[kind]
 	if route == "" {
 		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
