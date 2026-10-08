@@ -60,6 +60,26 @@ scripts).
 | `coroutine` | list the coroutines on the server's event loop |
 | `server-status` | show service status, halt causes, and checkpoint recovery summary |
 
+`show` uses QueryDocument v1 on both HTTP and gRPC. For example:
+
+```bash
+takler_client show --scope /forecast --depth 2
+takler_client show --scope /forecast/prepare --show-parameter --show-trigger
+```
+
+The first command reads a complete paged summary; the second requests live
+details for the selected scope. Detail flags over more than 4096 selected
+nodes fail with `resource_exhausted`; select a smaller scope. A failed page
+read prints no partial tree. The server can return `resource_exhausted` if
+state changes during a large capture; retry the read after the state settles
+or narrow the scope. Current clients do not automatically retry that semantic
+failure. Summary and detail have different sampling times. QueryDocument v1
+does not support `since`/incremental updates, and its cache is not a recovery
+source. The [query guide](https://takler.readthedocs.io/zh_CN/latest/guide/query.html)
+documents limits and error handling.
+Upgrade the server and Python/Go clients as a matched QueryDocument v1 set;
+the current `show` command does not fall back to the old full-tree endpoint.
+
 `server-halt` blocks both automatic work and manual `run --force`. Restored
 services start halted; inspect `server-status` and `show`, reconcile external
 jobs, then use `server-resume`. A successful control response describes an

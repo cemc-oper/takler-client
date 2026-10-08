@@ -43,7 +43,7 @@ func newShowCommand() *showCommand {
 	showCmd := &cobra.Command{
 		Use:   "show",
 		Short: "[query] print a compact workflow summary",
-		Long:  "read a complete paged workflow summary; use scope, depth, or detail flags to select more data",
+		Long:  "read a complete QueryDocument v1 summary in bounded pages. Scope, flow and depth limit the tree; detail flags sample selected nodes live (at most 4096). A changing state can reject a large capture; retry or narrow the scope. Incremental since queries are not supported.",
 		RunE:  c.runCommand,
 	}
 
