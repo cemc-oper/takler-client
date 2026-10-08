@@ -56,6 +56,7 @@ scripts).
 | Command | Purpose |
 | --- | --- |
 | `show` | print a paged workflow summary; select a subtree with `--scope` or `--flow`, limit depth with `--depth`, and request details with `--show-trigger`, `--show-parameter`, `--show-all`, ... |
+| `sync` | read a summary, poll `since` with `--polls`, rebuild on reset or structural invalidation, then print the final view |
 | `ping` | health check; needs no credentials |
 | `coroutine` | list the coroutines on the server's event loop |
 | `server-status` | show service status, halt causes, and checkpoint recovery summary |
@@ -65,6 +66,7 @@ scripts).
 ```bash
 takler_client show --scope /forecast --depth 2
 takler_client show --scope /forecast/prepare --show-parameter --show-trigger
+takler_client sync --scope /forecast --depth 2 --polls 5 --interval 1s
 ```
 
 The first command reads a complete paged summary; the second requests live
@@ -74,7 +76,10 @@ read prints no partial tree. The server can return `resource_exhausted` if
 state changes during a large capture; retry the read after the state settles
 or narrow the scope. Current clients do not automatically retry that semantic
 failure. Summary and detail have different sampling times. QueryDocument v1
-does not support `since`/incremental updates, and its cache is not a recovery
+supports summary `since` batches. The `sync` command keeps a process local
+cache, advances revision only after a full batch, and rebuilds after reset or
+structural invalidation. It prints only after all polls succeed. Detail groups
+remain live samples and are not subscribed to deltas. The cache is not a recovery
 source. The [query guide](https://takler.readthedocs.io/zh_CN/latest/guide/query.html)
 documents limits and error handling.
 Upgrade the server and Python/Go clients as a matched QueryDocument v1 set;
@@ -269,7 +274,7 @@ code; clients cannot request dynamic module imports.
 
 Both gRPC and HTTP send all
 mutation commands (including child commands, load and replace) once. Only ping,
-show and coroutine may retry transient failures. After an ambiguous mutation
+show, sync and coroutine may retry transient failures. After an ambiguous mutation
 failure, query server state before sending it again. TLS/configuration errors,
 malformed responses and business failures are never retried.
 

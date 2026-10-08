@@ -33,9 +33,13 @@ type QuerySnapshot struct {
 	ScopePath       string
 	Depth           *int
 	EstimatedBytes  int
+	Revision        int64
 	nodes           map[string]QueryNode
+	overrides       map[string]QueryNode
+	baseBytes       int
 	order           []string
 	flowGenerations map[string]string
+	staleScopes     []string
 }
 
 func (s *QuerySnapshot) Len() int {
@@ -49,12 +53,35 @@ func (s *QuerySnapshot) Node(path string) (QueryNode, bool) {
 	if s == nil {
 		return QueryNode{}, false
 	}
-	node, ok := s.nodes[path]
+	node, ok := s.overrides[path]
+	if !ok {
+		node, ok = s.nodes[path]
+	}
 	if node.AttemptID != nil {
 		attempt := *node.AttemptID
 		node.AttemptID = &attempt
 	}
 	return node, ok
+}
+
+// StaleScopes reports subtrees whose structure must be captured again.
+func (s *QuerySnapshot) StaleScopes() []string {
+	if s == nil {
+		return nil
+	}
+	return append([]string(nil), s.staleScopes...)
+}
+
+func (s *QuerySnapshot) IsStale(path string) bool {
+	if s == nil {
+		return false
+	}
+	for _, scope := range s.staleScopes {
+		if path == scope || strings.HasPrefix(path, strings.TrimSuffix(scope, "/")+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *QuerySnapshot) Paths() []string {
@@ -180,6 +207,10 @@ func (c *TaklerServiceClient) ReadQuerySnapshot(selection QuerySelection) (*Quer
 
 func (c *TaklerServiceClient) readQuerySnapshot(transport queryDocumentTransport, selection QuerySelection) (*QuerySnapshot, error) {
 	request := QueryPageRequest{Kind: "page_request", SchemaVersion: 1, FieldGroups: []string{"summary"}}
+	if selection.Depth != nil {
+		depth := *selection.Depth
+		selection.Depth = &depth
+	}
 	scope := "/"
 	if selection.ScopePath != "" {
 		request.ScopePath = &selection.ScopePath
@@ -215,7 +246,10 @@ func (c *TaklerServiceClient) readQuerySnapshot(transport queryDocumentTransport
 		if index == 0 {
 			snapshot.SessionID, snapshot.QueryID, snapshot.SnapshotID = page.SessionID, page.QueryID, page.SnapshotID
 			snapshot.AsOf, snapshot.ExpiresAt, snapshot.RootName = page.AsOf, page.ExpiresAt, page.RootName
-		} else if snapshot.SessionID != page.SessionID || snapshot.QueryID != page.QueryID || snapshot.SnapshotID != page.SnapshotID || snapshot.AsOf != page.AsOf || snapshot.ExpiresAt != page.ExpiresAt || snapshot.RootName != page.RootName {
+			if page.BaseRevision != nil {
+				snapshot.Revision = *page.BaseRevision
+			}
+		} else if snapshot.SessionID != page.SessionID || snapshot.QueryID != page.QueryID || snapshot.SnapshotID != page.SnapshotID || snapshot.AsOf != page.AsOf || snapshot.ExpiresAt != page.ExpiresAt || snapshot.RootName != page.RootName || (page.BaseRevision == nil) != (snapshot.Revision == 0) || page.BaseRevision != nil && *page.BaseRevision != snapshot.Revision {
 			return nil, queryProtocolError("query snapshot identity changed")
 		}
 		if page.TotalNodes != nil {
@@ -278,6 +312,7 @@ func (c *TaklerServiceClient) readQuerySnapshot(transport queryDocumentTransport
 		return nil, queryProtocolError("query node count mismatch")
 	}
 	c.queryCurrent = snapshot
+	snapshot.baseBytes = snapshot.EstimatedBytes
 	return snapshot, nil
 }
 
@@ -302,9 +337,12 @@ func (c *TaklerServiceClient) readQueryDetail(transport queryDocumentTransport, 
 	if snapshot == nil || !validQueryPath(path) {
 		return nil, queryRequestError("invalid detail path")
 	}
-	node, exists := snapshot.nodes[path]
+	node, exists := snapshot.Node(path)
 	if !exists {
 		return nil, queryRequestError("path is not in the query view")
+	}
+	if snapshot.IsStale(path) {
+		return nil, &QueryFailureError{Code: "stale_identity", Message: "query scope needs rebuilding", ResetScope: &path}
 	}
 	if !validQueryGroups(groups, true) {
 		return nil, queryRequestError("invalid detail groups")

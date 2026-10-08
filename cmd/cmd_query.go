@@ -9,6 +9,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/cemc-oper/takler-client/common"
 	"github.com/spf13/cobra"
@@ -43,7 +44,7 @@ func newShowCommand() *showCommand {
 	showCmd := &cobra.Command{
 		Use:   "show",
 		Short: "[query] print a compact workflow summary",
-		Long:  "read a complete QueryDocument v1 summary in bounded pages. Scope, flow and depth limit the tree; detail flags sample selected nodes live (at most 4096). A changing state can reject a large capture; retry or narrow the scope. Incremental since queries are not supported.",
+		Long:  "read a complete QueryDocument v1 summary in bounded pages. Scope, flow and depth limit the tree; detail flags sample selected nodes live (at most 4096). A changing state can reject a large capture; retry or narrow the scope.",
 		RunE:  c.runCommand,
 	}
 
@@ -61,6 +62,41 @@ func newShowCommand() *showCommand {
 
 	c.cmd = showCmd
 	return c
+}
+
+type syncCommand struct {
+	BaseCommand
+	host, port, scope, flow string
+	depth, polls            int
+	interval                time.Duration
+}
+
+func newSyncCommand() *syncCommand {
+	c := &syncCommand{}
+	command := &cobra.Command{Use: "sync", Short: "[query] poll summary changes and print the final view",
+		Long: "read a complete summary, poll a fixed number of revision batches, and print the final view. Reset or structural invalidation rebuilds the selected scope. This command keeps its cache only for this process.", RunE: c.runCommand}
+	command.Flags().StringVar(&c.host, "host", "", "takler service host")
+	command.Flags().StringVar(&c.port, "port", "", "takler service port")
+	command.Flags().StringVar(&c.scope, "scope", "", "subtree path")
+	command.Flags().StringVar(&c.flow, "flow", "", "flow name")
+	command.Flags().IntVar(&c.depth, "depth", 0, "relative tree depth")
+	command.Flags().IntVar(&c.polls, "polls", 1, "number of since reads after snapshot")
+	command.Flags().DurationVar(&c.interval, "interval", time.Second, "time between later since reads")
+	c.cmd = command
+	return c
+}
+
+func (mc *syncCommand) runCommand(cmd *cobra.Command, args []string) error {
+	client, err := newClient(mc.host, mc.port)
+	if err != nil {
+		return err
+	}
+	selection := common.QuerySelection{ScopePath: mc.scope, FlowName: mc.flow}
+	if cmd != nil && cmd.Flags().Changed("depth") {
+		selection.Depth = &mc.depth
+	}
+	_, err = client.RunQuerySyncShow(selection, mc.polls, mc.interval, os.Stdout)
+	return err
 }
 
 func (mc *showCommand) runCommand(cmd *cobra.Command, args []string) error {

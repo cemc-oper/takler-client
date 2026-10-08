@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 // QueryShowOptions selects details sampled after the summary.
@@ -14,6 +15,36 @@ type QueryShowOptions struct {
 	Limit     bool
 	Event     bool
 	Meter     bool
+}
+
+// RunQuerySyncShow prints only the final committed summary after polling.
+func (c *TaklerServiceClient) RunQuerySyncShow(selection QuerySelection, polls int, interval time.Duration, output io.Writer) (*QuerySnapshot, error) {
+	if output == nil {
+		output = os.Stdout
+	}
+	snapshot, err := c.SyncQuery(selection, polls, interval)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.CreateTemp("", "takler-query-sync-*.tmp")
+	if err != nil {
+		return nil, NewExitError(ExitServerError, "cannot stage query output: "+err.Error())
+	}
+	defer os.Remove(file.Name())
+	defer file.Close()
+	if _, err = fmt.Fprintf(file, "# revision=%d session=%s\n", snapshot.Revision, snapshot.SessionID); err != nil {
+		return nil, err
+	}
+	if err = c.renderQueryShow(nil, snapshot, QueryShowOptions{}, file); err != nil {
+		return nil, err
+	}
+	if _, err = file.Seek(0, io.SeekStart); err != nil {
+		return nil, NewExitError(ExitServerError, "cannot read staged query output: "+err.Error())
+	}
+	if _, err = io.Copy(output, file); err != nil {
+		return nil, NewExitError(ExitServerError, "cannot write query output: "+err.Error())
+	}
+	return snapshot, nil
 }
 
 // RunInitialQueryShow writes no output until the whole read and render succeed.
@@ -93,7 +124,7 @@ func (c *TaklerServiceClient) renderQueryShow(transport queryDocumentTransport, 
 		if path == "/" {
 			continue
 		}
-		node := snapshot.nodes[path]
+		node, _ := snapshot.Node(path)
 		depth := strings.Count(path, "/") - strings.Count(snapshot.ScopePath, "/")
 		if snapshot.ScopePath == "/" {
 			depth++

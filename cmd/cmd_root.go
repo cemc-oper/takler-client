@@ -51,6 +51,7 @@ func (b *commandsBuilder) addAll() *commandsBuilder {
 
 		// query
 		newShowCommand(),
+		newSyncCommand(),
 		newPingCommand(),
 		newCoroutineCommand(),
 		newServerStatusCommand(),

@@ -95,6 +95,9 @@ func commandRunners() map[string]func() error {
 		"show": func() error {
 			return newShowCommand().runCommand(nil, nil)
 		},
+		"sync": func() error {
+			return newSyncCommand().runCommand(nil, nil)
+		},
 		"ping": func() error {
 			return newPingCommand().runCommand(nil, nil)
 		},
@@ -143,9 +146,9 @@ func TestEveryCommandReportsUnusableCaCertificate(t *testing.T) {
 			if !strings.Contains(exitErr.Message, caFile) {
 				t.Errorf("message = %q, want it to name %q", exitErr.Message, caFile)
 			}
-			if name == "show" && output != "" {
-				t.Errorf("show printed partial output on failure: %q", output)
-			} else if name != "show" && !strings.Contains(output, "test_host:4321") {
+			if (name == "show" || name == "sync") && output != "" {
+				t.Errorf("query printed partial output on failure: %q", output)
+			} else if name != "show" && name != "sync" && !strings.Contains(output, "test_host:4321") {
 				t.Errorf("output = %q, want it to name the server the command talked to", output)
 			}
 		})
