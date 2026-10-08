@@ -1646,8 +1646,8 @@ func (x *BatchResponse) GetResults() []*BatchItemResult {
 }
 
 // R2 QueryDocument v1 is the same strict UTF-8 JSON on HTTP and gRPC.
-// ReadSince remains unavailable until revision tracking and the change window
-// are connected. The other methods serve the initial query and live detail.
+// ReadSince serves bounded summary deltas and resets. Other methods serve
+// the initial query and live detail.
 // They are separate from legacy TaklerServer methods so old command clients
 // and their exact method/privilege table remain stable.
 type QueryDocumentPayload struct {
