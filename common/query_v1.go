@@ -90,6 +90,13 @@ type QueryDetail struct {
 	AsOf            string                    `json:"as_of"`
 	RequestedGroups []string                  `json:"requested_groups"`
 	Groups          map[string]map[string]any `json:"groups"`
+	BlobRefs        []QueryBlobRef            `json:"blob_refs,omitempty"`
+}
+type QueryBlobRef struct {
+	Pointer    string `json:"pointer"`
+	BlobID     string `json:"blob_id"`
+	TotalBytes int    `json:"total_bytes"`
+	SHA256     string `json:"sha256"`
 }
 type QueryChunkRequest struct {
 	Kind          string `json:"kind"`
@@ -513,6 +520,11 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		for _, group := range v.RequestedGroups {
 			if value, ok := v.Groups[group]; !ok || !validQueryGroup(group, value) {
 				return nil, errors.New("missing detail group")
+			}
+		}
+		for _, ref := range v.BlobRefs {
+			if !strings.HasPrefix(ref.Pointer, "/groups/") || ref.BlobID == "" || ref.TotalBytes < 0 || ref.TotalBytes > 16*1024*1024 || !queryDigestPattern.MatchString(ref.SHA256) {
+				return nil, errors.New("invalid blob reference")
 			}
 		}
 	case *QueryChunkRequest:
