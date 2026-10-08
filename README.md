@@ -78,7 +78,7 @@ or narrow the scope. Current clients do not automatically retry that semantic
 failure. Summary and detail have different sampling times. QueryDocument v1
 supports summary `since` batches. The `sync` command keeps a process local
 cache, advances revision only after a full batch, and rebuilds after reset or
-structural invalidation. It prints only after all polls succeed. Detail groups
+structural, definition, or parameter invalidation. It prints only after all polls succeed. Detail groups
 remain live samples and are not subscribed to deltas. The cache is not a recovery
 source. The [query guide](https://takler.readthedocs.io/zh_CN/latest/guide/query.html)
 documents limits and error handling.
