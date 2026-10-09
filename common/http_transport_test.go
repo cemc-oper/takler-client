@@ -325,21 +325,6 @@ var httpCommandPayloads = []struct {
 			})
 			return err
 		}},
-	{"show", map[string]any{
-		"show_trigger":   true,
-		"show_parameter": false,
-		"show_limit":     true,
-		"show_event":     false,
-		"show_meter":     true,
-	},
-		func(tr Transport) error {
-			_, err := tr.RunRequestShow(context.Background(), &pb.ShowRequest{
-				ShowTrigger: true,
-				ShowLimit:   true,
-				ShowMeter:   true,
-			})
-			return err
-		}},
 	{"ping", map[string]any{},
 		func(tr Transport) error {
 			_, err := tr.RunRequestPing(context.Background(), &pb.PingRequest{})
@@ -646,10 +631,10 @@ func TestHttpTransportMalformedResponseIsAServerError(t *testing.T) {
 	_, err = callWith(
 		client,
 		context.Background(),
-		"show",
+		"coroutine",
 		KindQuery,
-		&pb.ShowRequest{},
-		transport.RunRequestShow,
+		&pb.CoroutineRequest{},
+		transport.QueryCoroutine,
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 

@@ -604,8 +604,8 @@ func TestCredentialsOnTheWire(t *testing.T) {
 			t.Fatalf("RunCommandSuspend: %v", err)
 		}
 		queryCtx := credOutgoingContext(t, KindQuery, credentials)
-		if _, err := server.Client.RunRequestShow(queryCtx, &pb.ShowRequest{}); err != nil {
-			t.Fatalf("RunRequestShow: %v", err)
+		if _, err := server.Client.QueryCoroutine(queryCtx, &pb.CoroutineRequest{}); err != nil {
+			t.Fatalf("QueryCoroutine: %v", err)
 		}
 
 		calls := server.Servicer.receivedCalls()

@@ -637,27 +637,6 @@ func (t *HttpTransport) RunCommandBegin(ctx context.Context, req *pb.BeginComman
 	})
 }
 
-func (t *HttpTransport) RunRequestShow(ctx context.Context, req *pb.ShowRequest) (*pb.ShowResponse, error) {
-	rawPayload, err := t.post(ctx, "show", map[string]any{
-		"show_trigger":   req.GetShowTrigger(),
-		"show_parameter": req.GetShowParameter(),
-		"show_limit":     req.GetShowLimit(),
-		"show_event":     req.GetShowEvent(),
-		"show_meter":     req.GetShowMeter(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var body struct {
-		Output string `json:"output"`
-	}
-	if err := json.Unmarshal(rawPayload, &body); err != nil {
-		return nil, &httpResponseError{err: err}
-	}
-	return &pb.ShowResponse{Output: body.Output}, nil
-}
-
 func (t *HttpTransport) serverStatusCall(ctx context.Context, command string) (*pb.ServerStatusResponse, error) {
 	raw, err := t.post(ctx, command, map[string]any{})
 	if err != nil {

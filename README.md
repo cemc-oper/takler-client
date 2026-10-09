@@ -82,8 +82,9 @@ structural, definition, or parameter invalidation. It prints only after all poll
 remain live samples and are not subscribed to deltas. The cache is not a recovery
 source. The [query guide](https://takler.readthedocs.io/zh_CN/latest/guide/query.html)
 documents limits and error handling.
-Upgrade the server and Python/Go clients as a matched QueryDocument v1 set;
-the current `show` command does not fall back to the old full-tree endpoint.
+Upgrade the server and Python/Go clients as a matched QueryDocument v1 set.
+The old full-tree `RunRequestShow` RPC and HTTP `show` endpoint have been
+removed; the CLI `show` and `sync` commands use QueryDocument v1.
 
 `server-halt` blocks both automatic work and manual `run --force`. Restored
 services start halted; inspect `server-status` and `show`, reconcile external

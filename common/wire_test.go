@@ -97,7 +97,7 @@ func TestSharedWireVectors(t *testing.T) {
 	}
 }
 
-// Expand the shared seed corpus to every field of all 17 payload schemas.
+// Expand the shared seed corpus to every field of all 19 payload schemas.
 func TestEveryWireFieldRejectsMissingNullAndWrongTypes(t *testing.T) {
 	values := map[string]any{"s": "x", "b": false, "as": []any{"/f"}, "decimal": "0", "base64": "AA==", "state": "complete", "dep": "all", "flag": 0, "uint32": 0, "effect": "applied", "items": []any{}, "coroutines": []any{}, "ns": "x", "no": map[string]any{}, "server_status": "running"}
 	for _, direction := range []string{"request", "response"} {
@@ -105,7 +105,7 @@ func TestEveryWireFieldRejectsMissingNullAndWrongTypes(t *testing.T) {
 		if err := json.Unmarshal(wireSchema[direction], &schemas); err != nil {
 			t.Fatal(err)
 		}
-		if len(schemas) != 20 {
+		if len(schemas) != 19 {
 			t.Fatalf("schema count %d", len(schemas))
 		}
 		for command, schema := range schemas {

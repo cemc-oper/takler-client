@@ -243,10 +243,6 @@ func (t *GrpcTransport) RunCommandBegin(ctx context.Context, req *pb.BeginComman
 	return t.client.RunCommandBegin(ctx, req)
 }
 
-func (t *GrpcTransport) RunRequestShow(ctx context.Context, req *pb.ShowRequest) (*pb.ShowResponse, error) {
-	return t.client.RunRequestShow(ctx, req)
-}
-
 func (t *GrpcTransport) RunRequestPing(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
 	return t.client.RunRequestPing(ctx, req)
 }

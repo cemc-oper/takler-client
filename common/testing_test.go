@@ -287,15 +287,6 @@ func (s *fakeServicer) RunCommandServerResume(ctx context.Context, req *pb.Serve
 
 // Query commands.
 
-func (s *fakeServicer) RunRequestShow(ctx context.Context, req *pb.ShowRequest) (*pb.ShowResponse, error) {
-	if err := s.admit(ctx, "RunRequestShow", req); err != nil {
-		return nil, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return &pb.ShowResponse{Output: s.message}, nil
-}
-
 func (s *fakeServicer) RunRequestPing(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
 	if err := s.admit(ctx, "RunRequestPing", req); err != nil {
 		return nil, err

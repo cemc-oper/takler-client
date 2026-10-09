@@ -39,7 +39,6 @@ var contractRPCSurface = map[string][2]string{
 	"RunCommandLoad":         {"LoadCommand", "ServiceResponse"},
 	"RunCommandReplace":      {"ReplaceCommand", "ServiceResponse"},
 	"RunCommandBegin":        {"BeginCommand", "BatchResponse"},
-	"RunRequestShow":         {"ShowRequest", "ShowResponse"},
 	"RunRequestPing":         {"PingRequest", "PingResponse"},
 	"QueryCoroutine":         {"CoroutineRequest", "CoroutineResponse"},
 	"RunRequestServerStatus": {"ServerStatusRequest", "ServerStatusResponse"},

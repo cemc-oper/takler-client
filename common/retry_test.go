@@ -695,10 +695,10 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	response, err := callWith(
 		retryCallClient(),
 		context.Background(),
-		"show",
+		"coroutine",
 		KindQuery,
-		&pb.ShowRequest{},
-		grpcRPC(server.Client.RunRequestShow),
+		&pb.CoroutineRequest{},
+		grpcRPC(server.Client.QueryCoroutine),
 		callSettings{policy: retryPolicyWithClock(window, clock), warn: &warn},
 	)
 	wallElapsed := time.Since(wallStart)
@@ -736,8 +736,8 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	}
 	if len(lines) >= 2 {
 		want := []string{
-			fmt.Sprintf("retry show to %s: elapsed=0.0s, status=%v", retryCallAddress, codes.Unavailable),
-			fmt.Sprintf("retry show to %s: elapsed=1.0s, status=%v", retryCallAddress, codes.Unavailable),
+			fmt.Sprintf("retry coroutine to %s: elapsed=0.0s, status=%v", retryCallAddress, codes.Unavailable),
+			fmt.Sprintf("retry coroutine to %s: elapsed=1.0s, status=%v", retryCallAddress, codes.Unavailable),
 		}
 		for i, w := range want {
 			if lines[i] != w {
@@ -748,7 +748,7 @@ func TestCallStopsWhenWindowExhausted(t *testing.T) {
 	for i, line := range lines {
 		retryAssertMessageContains(
 			t, fmt.Sprintf("diagnostics line %d", i+1), line,
-			retryCallAddress, "show", "elapsed=", codes.Unavailable.String(),
+			retryCallAddress, "coroutine", "elapsed=", codes.Unavailable.String(),
 		)
 	}
 
@@ -778,10 +778,10 @@ func TestCallRetriesThenSucceeds(t *testing.T) {
 	response, err := callWith(
 		retryCallClient(),
 		context.Background(),
-		"show",
+		"coroutine",
 		KindQuery,
-		&pb.ShowRequest{},
-		grpcRPC(server.Client.RunRequestShow),
+		&pb.CoroutineRequest{},
+		grpcRPC(server.Client.QueryCoroutine),
 		callSettings{policy: retryPolicyWithClock(86400*time.Second, clock), warn: &warn},
 	)
 	if err != nil {
@@ -1001,10 +1001,10 @@ func TestCallInjectsCredentialMetadata(t *testing.T) {
 		_, err := callWith(
 			retryCallClient(),
 			context.Background(),
-			"show",
+			"coroutine",
 			KindQuery,
-			&pb.ShowRequest{},
-			grpcRPC(server.Client.RunRequestShow),
+			&pb.CoroutineRequest{},
+			grpcRPC(server.Client.QueryCoroutine),
 			callSettings{policy: retryPolicyWithClock(60*time.Second, clock), warn: &warn},
 		)
 		if err != nil {
@@ -1105,16 +1105,16 @@ func TestCallUsesProcessRetryWindow(t *testing.T) {
 		response, err := Call(
 			retryCallClient(),
 			context.Background(),
-			"show",
+			"coroutine",
 			KindQuery,
-			&pb.ShowRequest{},
-			grpcRPC(server.Client.RunRequestShow),
+			&pb.CoroutineRequest{},
+			grpcRPC(server.Client.QueryCoroutine),
 		)
 		if err != nil {
 			t.Fatalf("Call: %v", err)
 		}
-		if got := response.GetOutput(); got != "pong" {
-			t.Errorf("output = %q, want %q", got, "pong")
+		if response == nil {
+			t.Error("response is nil, want a coroutine response")
 		}
 		if got := server.Servicer.callCount(); got != 1 {
 			t.Errorf("the server received %d calls, want exactly 1", got)

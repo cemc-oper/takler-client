@@ -5,10 +5,7 @@
 // CallCommand (requirements 14.1, 13.7), and a failure returns as an *ExitError
 // instead of ending the process (requirement 15.9).
 //
-// Unlike a command response, a query response carries no flag: what these two
-// methods read out of the response is the payload the operator asked for, which
-// is why they print it here, exactly as the Python client's run_request_show
-// does.
+// Unlike a command response, ping and coroutine query responses carry no flag.
 package common
 
 import (
@@ -17,33 +14,6 @@ import (
 
 	pb "github.com/cemc-oper/takler-client/takler_protocol"
 )
-
-// RunQueryShow prints the server's bunch tree, with the item classes the flags
-// select. The output is the server's safe JSON projection: node_kind,
-// generated_parameters, current attempts, file references, and redacted_parameters
-// remain intact for JSON consumers. The root carries service status separately.
-// Execution type labels are data; the client never loads scheduler plugins.
-func (c *TaklerServiceClient) RunQueryShow(
-	showTrigger bool,
-	showParameter bool,
-	showLimit bool,
-	showEvent bool,
-	showMeter bool,
-) (*pb.ShowResponse, error) {
-	response, err := CallCommand(c, "show", KindQuery, &pb.ShowRequest{
-		ShowTrigger:   showTrigger,
-		ShowParameter: showParameter,
-		ShowLimit:     showLimit,
-		ShowEvent:     showEvent,
-		ShowMeter:     showMeter,
-	}, Transport.RunRequestShow)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Print(response.GetOutput())
-	return response, nil
-}
 
 // RunQueryPing checks that the server answers, and reports how long that took.
 //

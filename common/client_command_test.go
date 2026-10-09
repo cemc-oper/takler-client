@@ -128,10 +128,6 @@ func TestCommandMethodsReturnTheCallWrapperError(t *testing.T) {
 			_, err := c.RunCommandBegin("flow1", false)
 			return err
 		}},
-		{"show", func(c *TaklerServiceClient) error {
-			_, err := c.RunQueryShow(true, true, true, true, true)
-			return err
-		}},
 		{"ping", func(c *TaklerServiceClient) error {
 			_, err := c.RunQueryPing()
 			return err

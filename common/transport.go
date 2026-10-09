@@ -110,7 +110,6 @@ type Transport interface {
 
 	// Query commands.
 
-	RunRequestShow(context.Context, *pb.ShowRequest) (*pb.ShowResponse, error)
 	RunRequestPing(context.Context, *pb.PingRequest) (*pb.PingResponse, error)
 	QueryCoroutine(context.Context, *pb.CoroutineRequest) (*pb.CoroutineResponse, error)
 	RunRequestServerStatus(context.Context, *pb.ServerStatusRequest) (*pb.ServerStatusResponse, error)
