@@ -122,6 +122,26 @@ func TestQuerySnapshotPublishesAfterCompletePages(t *testing.T) {
 	}
 }
 
+func TestExpiredDetailMarksCurrentViewStaleForRebuild(t *testing.T) {
+	page := queryTestPage(0, true, queryTestNode("/", "bunch"), queryTestNode("/flow", "flow"), queryTestNode("/flow/task", "task"))
+	expired := QueryFailure{Kind: "error", SchemaVersion: 1, Code: "snapshot_expired", Message: "lease ended"}
+	client, _ := queryTestClient(t, page, expired, page)
+	old, err := client.ReadQuerySnapshot(QuerySelection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ReadQueryDetail(old, "/flow/task", []string{"runtime"}); err == nil || !strings.Contains(err.Error(), "snapshot_expired") {
+		t.Fatalf("detail error = %v", err)
+	}
+	if !client.CurrentQuerySnapshot().IsStale("/flow/task") {
+		t.Fatal("expired detail left current view usable")
+	}
+	rebuilt, err := client.ReadQuerySnapshot(QuerySelection{})
+	if err != nil || rebuilt.IsStale("/flow/task") {
+		t.Fatalf("rebuild = %v, %v", rebuilt, err)
+	}
+}
+
 func TestQuerySnapshotRejectsInvalidContinuationAndTypedFailure(t *testing.T) {
 	first := queryTestPage(0, false, queryTestNode("/", "bunch"), queryTestNode("/flow", "flow"))
 	for _, tc := range []struct {

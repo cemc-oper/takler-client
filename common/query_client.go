@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -324,6 +325,8 @@ func sameQueryString(a, b *string) bool {
 }
 
 func (c *TaklerServiceClient) ReadQueryDetail(snapshot *QuerySnapshot, path string, groups []string) (*QueryDetail, error) {
+	c.queryMu.Lock()
+	defer c.queryMu.Unlock()
 	var result *QueryDetail
 	err := c.withQueryTransport(func(transport queryDocumentTransport) error {
 		var err error
@@ -360,6 +363,10 @@ func (c *TaklerServiceClient) readQueryDetail(transport queryDocumentTransport, 
 		QueryID: snapshot.QueryID, Path: path, FlowGeneration: generation, AttemptID: node.AttemptID, FieldGroups: groups}
 	value, err := c.queryDocument(transport, "detail_request", request, "detail")
 	if err != nil {
+		var failure *QueryFailureError
+		if errors.As(err, &failure) && failure.Code == "snapshot_expired" {
+			c.markQueryStale(snapshot, snapshot.ScopePath)
+		}
 		return nil, err
 	}
 	detail := value.(*QueryDetail)

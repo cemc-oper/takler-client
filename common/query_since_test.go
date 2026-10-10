@@ -67,6 +67,36 @@ func TestQuerySinceStagesPagesAndSharesSparseBase(t *testing.T) {
 	}
 }
 
+func TestUnchangedPollsKeepDetailAvailableAfterPageExpiry(t *testing.T) {
+	page := sinceTestPage()
+	page.ExpiresAt = "2026-10-08T00:02:00Z"
+	first := sinceTestDelta(0, true, 5)
+	second := sinceTestDelta(0, true, 5)
+	second.AsOf = "2026-10-08T00:02:01Z"
+	second.ExpiresAt = "2026-10-08T00:04:01Z"
+	third := sinceTestDelta(0, true, 5)
+	third.AsOf = "2026-10-08T00:04:02Z"
+	third.ExpiresAt = "2026-10-08T00:06:02Z"
+	generation := "generation"
+	detail := QueryDetail{Kind: "detail", SchemaVersion: 1, SessionID: "session", QueryID: "query", Path: "/flow/task", FlowGeneration: &generation,
+		SampleMode: "live", AsOf: "2026-10-08T00:04:03Z", RequestedGroups: []string{"parameters"},
+		Groups: map[string]map[string]any{"parameters": {"user": []any{}}}}
+	client, _ := queryTestClient(t, page, sinceTestCapabilities(true), first, sinceTestCapabilities(true), second, sinceTestCapabilities(true), third, detail)
+	view, err := client.ReadQuerySnapshot(QuerySelection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		updated, err := client.ReadQuerySince(view)
+		if err != nil || updated != view {
+			t.Fatalf("unchanged poll = %v, %v", updated, err)
+		}
+	}
+	if result, err := client.ReadQueryDetail(view, "/flow/task", []string{"parameters"}); err != nil || result.Path != "/flow/task" {
+		t.Fatalf("detail after page expiry = %v, %v", result, err)
+	}
+}
+
 func TestQuerySnapshotRejectsChangedBaseRevisionAcrossPages(t *testing.T) {
 	first := queryTestPage(0, false, queryTestNode("/", "bunch"), queryTestNode("/flow", "flow"))
 	second := queryTestPage(1, true, queryTestNode("/flow/task", "task"))
