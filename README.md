@@ -57,6 +57,7 @@ scripts).
 | --- | --- |
 | `show` | print a paged workflow summary; select a subtree with `--scope` or `--flow`, limit depth with `--depth`, and request details with `--show-trigger`, `--show-parameter`, `--show-all`, ... |
 | `sync` | read a summary, poll `since` with `--polls`, rebuild on reset or structural invalidation, then print the final view |
+| `snapshot` | read one fixed public detail version; choose `--scope`, `--depth`, `--fields`, and `--stream` for JSON lines with a completion proof |
 | `ping` | health check; needs no credentials |
 | `coroutine` | list the coroutines on the server's event loop |
 | `server-status` | show service status, halt causes, and checkpoint recovery summary |
@@ -67,15 +68,17 @@ scripts).
 takler_client show --scope /forecast --depth 2
 takler_client show --scope /forecast/prepare --show-parameter --show-trigger
 takler_client sync --scope /forecast --depth 2 --polls 5 --interval 1s
+takler_client snapshot --scope /forecast --fields summary,parameters,runtime --stream
 ```
 
 The first command reads a complete paged summary; the second requests live
 details for the selected scope. Detail flags over more than 4096 selected
 nodes fail with `resource_exhausted`; select a smaller scope. A failed page
-read prints no partial tree. The server can return `resource_exhausted` if
-state changes during a large capture; retry the read after the state settles
-or narrow the scope. Current clients do not automatically retry that semantic
-failure. Summary and detail have different sampling times. QueryDocument v1
+read prints no partial tree. Fixed summary capture runs on a pinned state
+version, so later writes do not invalidate its pages. Resource limits can still
+return `resource_exhausted`; narrow the scope or retry the read. Current clients
+do not automatically retry that semantic failure. Summary and live detail have
+different sampling times. QueryDocument v1
 supports summary `since` batches. The `sync` command keeps a process local
 cache, advances revision only after a full batch, and rebuilds after reset or
 structural, definition, or parameter invalidation. It prints only after all polls succeed. Detail groups
@@ -84,7 +87,15 @@ source. The [query guide](https://takler.readthedocs.io/zh_CN/latest/guide/query
 documents limits and error handling.
 Upgrade the server and Python/Go clients as a matched QueryDocument v1 set.
 The old full-tree `RunRequestShow` RPC and HTTP `show` endpoint have been
-removed; the CLI `show` and `sync` commands use QueryDocument v1.
+removed; the CLI `show`, `sync`, and `snapshot` commands use QueryDocument v1.
+
+`snapshot` selects all public groups by default and returns a structured JSON
+object from one state version. `--stream` emits one JSON line per node and a final
+`complete` line after all pages, large fields, and SHA-256 totals validate. A
+consumer must require that final line; a broken stream is incomplete. The
+server advertises `full_snapshot_v1` and rejects unsupported plugin details.
+Snapshots contain public data and file references, never checkpoint secrets or
+file contents, and cannot be used for recovery.
 
 `server-halt` blocks both automatic work and manual `run --force`. Restored
 services start halted; inspect `server-status` and `show`, reconcile external

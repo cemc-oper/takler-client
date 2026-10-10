@@ -807,11 +807,14 @@ var TaklerServer_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	TaklerQuery_GetCapabilities_FullMethodName = "/takler_protocol.TaklerQuery/GetCapabilities"
-	TaklerQuery_ReadPage_FullMethodName        = "/takler_protocol.TaklerQuery/ReadPage"
-	TaklerQuery_ReadDetail_FullMethodName      = "/takler_protocol.TaklerQuery/ReadDetail"
-	TaklerQuery_ReadDetailChunk_FullMethodName = "/takler_protocol.TaklerQuery/ReadDetailChunk"
-	TaklerQuery_ReadSince_FullMethodName       = "/takler_protocol.TaklerQuery/ReadSince"
+	TaklerQuery_GetCapabilities_FullMethodName       = "/takler_protocol.TaklerQuery/GetCapabilities"
+	TaklerQuery_ReadPage_FullMethodName              = "/takler_protocol.TaklerQuery/ReadPage"
+	TaklerQuery_ReadDetail_FullMethodName            = "/takler_protocol.TaklerQuery/ReadDetail"
+	TaklerQuery_ReadDetailChunk_FullMethodName       = "/takler_protocol.TaklerQuery/ReadDetailChunk"
+	TaklerQuery_ReadSince_FullMethodName             = "/takler_protocol.TaklerQuery/ReadSince"
+	TaklerQuery_ReadFullSnapshot_FullMethodName      = "/takler_protocol.TaklerQuery/ReadFullSnapshot"
+	TaklerQuery_ReadFullSnapshotChunk_FullMethodName = "/takler_protocol.TaklerQuery/ReadFullSnapshotChunk"
+	TaklerQuery_CancelFullSnapshot_FullMethodName    = "/takler_protocol.TaklerQuery/CancelFullSnapshot"
 )
 
 // TaklerQueryClient is the client API for TaklerQuery service.
@@ -823,6 +826,9 @@ type TaklerQueryClient interface {
 	ReadDetail(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 	ReadDetailChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 	ReadSince(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadFullSnapshot(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	ReadFullSnapshotChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
+	CancelFullSnapshot(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error)
 }
 
 type taklerQueryClient struct {
@@ -883,6 +889,36 @@ func (c *taklerQueryClient) ReadSince(ctx context.Context, in *QueryDocumentPayl
 	return out, nil
 }
 
+func (c *taklerQueryClient) ReadFullSnapshot(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadFullSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerQueryClient) ReadFullSnapshotChunk(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_ReadFullSnapshotChunk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *taklerQueryClient) CancelFullSnapshot(ctx context.Context, in *QueryDocumentPayload, opts ...grpc.CallOption) (*QueryDocumentPayload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryDocumentPayload)
+	err := c.cc.Invoke(ctx, TaklerQuery_CancelFullSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TaklerQueryServer is the server API for TaklerQuery service.
 // All implementations must embed UnimplementedTaklerQueryServer
 // for forward compatibility.
@@ -892,6 +928,9 @@ type TaklerQueryServer interface {
 	ReadDetail(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	ReadDetailChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	ReadSince(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadFullSnapshot(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	ReadFullSnapshotChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
+	CancelFullSnapshot(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error)
 	mustEmbedUnimplementedTaklerQueryServer()
 }
 
@@ -916,6 +955,15 @@ func (UnimplementedTaklerQueryServer) ReadDetailChunk(context.Context, *QueryDoc
 }
 func (UnimplementedTaklerQueryServer) ReadSince(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadSince not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadFullSnapshot(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadFullSnapshot not implemented")
+}
+func (UnimplementedTaklerQueryServer) ReadFullSnapshotChunk(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadFullSnapshotChunk not implemented")
+}
+func (UnimplementedTaklerQueryServer) CancelFullSnapshot(context.Context, *QueryDocumentPayload) (*QueryDocumentPayload, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelFullSnapshot not implemented")
 }
 func (UnimplementedTaklerQueryServer) mustEmbedUnimplementedTaklerQueryServer() {}
 func (UnimplementedTaklerQueryServer) testEmbeddedByValue()                     {}
@@ -1028,6 +1076,60 @@ func _TaklerQuery_ReadSince_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaklerQuery_ReadFullSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadFullSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadFullSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadFullSnapshot(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerQuery_ReadFullSnapshotChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).ReadFullSnapshotChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_ReadFullSnapshotChunk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).ReadFullSnapshotChunk(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TaklerQuery_CancelFullSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDocumentPayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaklerQueryServer).CancelFullSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaklerQuery_CancelFullSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaklerQueryServer).CancelFullSnapshot(ctx, req.(*QueryDocumentPayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TaklerQuery_ServiceDesc is the grpc.ServiceDesc for TaklerQuery service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1054,6 +1156,18 @@ var TaklerQuery_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReadSince",
 			Handler:    _TaklerQuery_ReadSince_Handler,
+		},
+		{
+			MethodName: "ReadFullSnapshot",
+			Handler:    _TaklerQuery_ReadFullSnapshot_Handler,
+		},
+		{
+			MethodName: "ReadFullSnapshotChunk",
+			Handler:    _TaklerQuery_ReadFullSnapshotChunk_Handler,
+		},
+		{
+			MethodName: "CancelFullSnapshot",
+			Handler:    _TaklerQuery_CancelFullSnapshot_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

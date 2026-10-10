@@ -118,6 +118,12 @@ func (t *GrpcTransport) QueryDocument(ctx context.Context, kind string, raw []by
 		response, err = t.queryClient.ReadDetailChunk(ctx, request)
 	case "since_request":
 		response, err = t.queryClient.ReadSince(ctx, request)
+	case "full_snapshot_request":
+		response, err = t.queryClient.ReadFullSnapshot(ctx, request)
+	case "full_snapshot_chunk_request":
+		response, err = t.queryClient.ReadFullSnapshotChunk(ctx, request)
+	case "cancel_full_snapshot_request":
+		response, err = t.queryClient.CancelFullSnapshot(ctx, request)
 	default:
 		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
 	}

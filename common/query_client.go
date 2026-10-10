@@ -161,6 +161,12 @@ func queryKind(value any) string {
 		return "since"
 	case *QueryReset:
 		return "reset"
+	case *FullSnapshotPage:
+		return "full_snapshot_page"
+	case *FullSnapshotChunk:
+		return "full_snapshot_chunk"
+	case *CancelFullSnapshotReply:
+		return "cancel_full_snapshot_reply"
 	}
 	return ""
 }

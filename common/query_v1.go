@@ -35,6 +35,7 @@ type QueryCapabilities struct {
 	MaxPageNodes        int    `json:"max_page_nodes"`
 	MaxDecodedPageBytes int    `json:"max_decoded_page_bytes"`
 	MaxChunkBytes       int    `json:"max_chunk_bytes"`
+	FullSnapshotV1      bool   `json:"full_snapshot_v1,omitempty"`
 }
 type QueryPageRequest struct {
 	Kind          string   `json:"kind"`
@@ -639,18 +640,24 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		return nil, errors.New("unsupported query version")
 	}
 	required := map[string][]string{
-		"capabilities_request": {"kind", "schema_version"},
-		"capabilities":         {"kind", "schema_version", "snapshot", "detail", "since", "max_page_nodes", "max_decoded_page_bytes", "max_chunk_bytes"},
-		"page_request":         {"kind", "schema_version", "field_groups"},
-		"page":                 {"kind", "schema_version", "session_id", "query_id", "snapshot_id", "as_of", "expires_at", "page_index", "complete", "next_cursor", "root_name", "flow_generations", "nodes"},
-		"detail_request":       {"kind", "schema_version", "session_id", "query_id", "path", "flow_generation", "attempt_id", "field_groups"},
-		"detail":               {"kind", "schema_version", "session_id", "query_id", "path", "flow_generation", "attempt_id", "sample_mode", "as_of", "requested_groups", "groups"},
-		"chunk_request":        {"kind", "schema_version", "blob_id", "offset"},
-		"chunk":                {"kind", "schema_version", "blob_id", "offset", "total_bytes", "sha256", "data_base64", "complete"},
-		"error":                {"kind", "schema_version", "code", "message"},
-		"since_request":        {"kind", "schema_version", "field_groups", "session_id", "query_id", "since_revision"},
-		"since":                {"kind", "schema_version", "session_id", "query_id", "batch_id", "from_revision", "target_revision", "as_of", "expires_at", "page_index", "complete", "next_cursor", "unchanged", "operations"},
-		"reset":                {"kind", "schema_version", "session_id", "query_id", "since_revision", "reset_scope", "reason"},
+		"full_snapshot_request":        {"kind", "schema_version"},
+		"full_snapshot_page":           {"kind", "schema_version", "session_id", "full_snapshot_id", "state_version", "as_of", "scope_path", "depth", "field_groups", "selection_hash", "encoding", "page_index", "complete", "next_cursor", "nodes"},
+		"full_snapshot_chunk_request":  {"kind", "schema_version", "session_id", "full_snapshot_id", "blob_id", "offset"},
+		"full_snapshot_chunk":          {"kind", "schema_version", "session_id", "full_snapshot_id", "state_version", "as_of", "blob_id", "offset", "total_bytes", "sha256", "data_base64", "complete"},
+		"cancel_full_snapshot_request": {"kind", "schema_version", "session_id", "full_snapshot_id"},
+		"cancel_full_snapshot_reply":   {"kind", "schema_version", "cancelled"},
+		"capabilities_request":         {"kind", "schema_version"},
+		"capabilities":                 {"kind", "schema_version", "snapshot", "detail", "since", "max_page_nodes", "max_decoded_page_bytes", "max_chunk_bytes"},
+		"page_request":                 {"kind", "schema_version", "field_groups"},
+		"page":                         {"kind", "schema_version", "session_id", "query_id", "snapshot_id", "as_of", "expires_at", "page_index", "complete", "next_cursor", "root_name", "flow_generations", "nodes"},
+		"detail_request":               {"kind", "schema_version", "session_id", "query_id", "path", "flow_generation", "attempt_id", "field_groups"},
+		"detail":                       {"kind", "schema_version", "session_id", "query_id", "path", "flow_generation", "attempt_id", "sample_mode", "as_of", "requested_groups", "groups"},
+		"chunk_request":                {"kind", "schema_version", "blob_id", "offset"},
+		"chunk":                        {"kind", "schema_version", "blob_id", "offset", "total_bytes", "sha256", "data_base64", "complete"},
+		"error":                        {"kind", "schema_version", "code", "message"},
+		"since_request":                {"kind", "schema_version", "field_groups", "session_id", "query_id", "since_revision"},
+		"since":                        {"kind", "schema_version", "session_id", "query_id", "batch_id", "from_revision", "target_revision", "as_of", "expires_at", "page_index", "complete", "next_cursor", "unchanged", "operations"},
+		"reset":                        {"kind", "schema_version", "session_id", "query_id", "since_revision", "reset_scope", "reason"},
 	}[kind]
 	if required == nil {
 		return nil, errors.New("unknown query kind")
@@ -662,6 +669,18 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 	}
 	var out any
 	switch kind {
+	case "full_snapshot_request":
+		out = &FullSnapshotRequest{}
+	case "full_snapshot_page":
+		out = &FullSnapshotPage{}
+	case "full_snapshot_chunk_request":
+		out = &FullSnapshotChunkRequest{}
+	case "full_snapshot_chunk":
+		out = &FullSnapshotChunk{}
+	case "cancel_full_snapshot_request":
+		out = &CancelFullSnapshotRequest{}
+	case "cancel_full_snapshot_reply":
+		out = &CancelFullSnapshotReply{}
 	case "capabilities_request":
 		out = &QueryCapabilitiesRequest{}
 	case "capabilities":
@@ -693,6 +712,33 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 		return nil, err
 	}
 	switch v := out.(type) {
+	case *FullSnapshotRequest:
+		if !validQueryPath(v.ScopePath) || len(v.FieldGroups) == 0 || v.FieldGroups[0] != "summary" || v.Depth != nil && *v.Depth < 0 || (v.Cursor == nil) != (v.FullSnapshotID == nil) {
+			return nil, errors.New("invalid full snapshot request")
+		}
+		seen := map[string]bool{}
+		for _, group := range v.FieldGroups {
+			if group == "" || seen[group] {
+				return nil, errors.New("invalid full snapshot field groups")
+			}
+			seen[group] = true
+		}
+	case *FullSnapshotPage:
+		if v.SessionID == "" || v.FullSnapshotID == "" || v.StateVersion < 1 || !validQueryUTC(v.AsOf) || !validQueryPath(v.ScopePath) || !validQueryGroups(v.FieldGroups, false) || v.Encoding != "compact_v1" || v.PageIndex < 0 || len(v.Nodes) > QueryMaxPageNodes || v.Complete != (v.NextCursor == nil) || v.Complete && (v.TotalNodes == nil || v.TotalBytes == nil || v.SHA256 == nil || !queryDigestPattern.MatchString(*v.SHA256)) {
+			return nil, errors.New("invalid full snapshot page")
+		}
+	case *FullSnapshotChunkRequest:
+		if v.SessionID == "" || v.FullSnapshotID == "" || v.BlobID == "" || v.Offset < 0 {
+			return nil, errors.New("invalid full snapshot chunk request")
+		}
+	case *FullSnapshotChunk:
+		if v.SessionID == "" || v.FullSnapshotID == "" || v.StateVersion < 1 || !validQueryUTC(v.AsOf) || v.BlobID == "" || v.Offset < 0 || v.TotalBytes < 0 || v.TotalBytes > 16*1024*1024 || !queryDigestPattern.MatchString(v.SHA256) {
+			return nil, errors.New("invalid full snapshot chunk")
+		}
+	case *CancelFullSnapshotRequest:
+		if v.SessionID == "" || v.FullSnapshotID == "" {
+			return nil, errors.New("invalid full snapshot cancel")
+		}
 	case *QueryCapabilities:
 		if _, ok := obj["since"].(bool); !ok {
 			return nil, errors.New("invalid capabilities since")

@@ -121,11 +121,14 @@ func (t *HttpTransport) QueryDocument(ctx context.Context, kind string, raw []by
 		return nil, NewExitError(ExitRequestError, "query transport is not open")
 	}
 	route := map[string]string{
-		"capabilities_request": "capabilities",
-		"page_request":         "pages",
-		"detail_request":       "details",
-		"chunk_request":        "chunks",
-		"since_request":        "since",
+		"capabilities_request":         "capabilities",
+		"page_request":                 "pages",
+		"detail_request":               "details",
+		"chunk_request":                "chunks",
+		"since_request":                "since",
+		"full_snapshot_request":        "full-snapshots",
+		"full_snapshot_chunk_request":  "full-snapshot-chunks",
+		"cancel_full_snapshot_request": "full-snapshot-cancel",
 	}[kind]
 	if route == "" {
 		return nil, NewExitError(ExitRequestError, "unsupported query request kind")
