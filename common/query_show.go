@@ -131,6 +131,9 @@ func (c *TaklerServiceClient) renderQueryShow(transport queryDocumentTransport, 
 		}
 		prefix := strings.Repeat("  ", max(0, depth-base))
 		state := node.Status
+		if node.SubmissionUnknown != nil && *node.SubmissionUnknown {
+			state += "; submission unknown"
+		}
 		if node.Suspended {
 			state = "suspend (" + state + ")"
 		}
@@ -147,6 +150,11 @@ func (c *TaklerServiceClient) renderQueryShow(transport queryDocumentTransport, 
 		spaces := strings.Repeat(" ", len(prefix)+4)
 		definition := detail.Groups["definition"]
 		runtime := detail.Groups["runtime"]
+		if reason, ok := runtime["submission_unknown_reason"].(string); ok && reason != "" {
+			if err := queryShowLine(output, spaces, "submission unknown: %s", reason); err != nil {
+				return err
+			}
+		}
 		if repeat, ok := definition["repeat"].(map[string]any); ok {
 			if err := queryShowLine(output, spaces, "repeat %v [%v, %v]", repeat["name"], repeat["start_date"], repeat["end_date"]); err != nil {
 				return err

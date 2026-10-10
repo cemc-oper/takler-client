@@ -210,3 +210,24 @@ func TestQueryBlobDigestAndShowFailureKeepOutputEmpty(t *testing.T) {
 		t.Fatal("negative blob index was accepted")
 	}
 }
+
+func TestUnknownSubmissionVisibleInSummaryShow(t *testing.T) {
+	page := queryTestPage(0, true, queryTestNode("/", "bunch"), queryTestNode("/flow", "flow"))
+	attempt, unknown := "attempt-1", true
+	task := queryTestNode("/flow/task", "task")
+	task.Status = "submitted"
+	task.AttemptID = &attempt
+	task.SubmissionUnknown = &unknown
+	page.Nodes = append(page.Nodes, task)
+	client, transport := queryTestClient(t, page)
+	var output bytes.Buffer
+	if _, err := client.RunInitialQueryShow(QuerySelection{}, QueryShowOptions{}, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "task [submitted; submission unknown]") {
+		t.Fatalf("summary = %q", output.String())
+	}
+	if len(transport.requests) != 1 {
+		t.Fatalf("requests = %v", transport.requests)
+	}
+}

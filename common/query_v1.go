@@ -46,12 +46,13 @@ type QueryPageRequest struct {
 	Cursor        *string  `json:"cursor"`
 }
 type QueryNode struct {
-	Path      string  `json:"path"`
-	NodeKind  string  `json:"node_kind"`
-	TypeID    string  `json:"type_id"`
-	Status    string  `json:"status"`
-	Suspended bool    `json:"suspended"`
-	AttemptID *string `json:"attempt_id,omitempty"`
+	Path              string  `json:"path"`
+	NodeKind          string  `json:"node_kind"`
+	TypeID            string  `json:"type_id"`
+	Status            string  `json:"status"`
+	Suspended         bool    `json:"suspended"`
+	AttemptID         *string `json:"attempt_id,omitempty"`
+	SubmissionUnknown *bool   `json:"submission_unknown,omitempty"`
 }
 type QueryPage struct {
 	Kind            string            `json:"kind"`
@@ -192,7 +193,7 @@ func validQueryUTC(value string) bool {
 var queryGroupFields = map[string]map[string]bool{
 	"definition": {"trigger": true, "complete_trigger": true, "script_path": true, "times": true, "repeat": true, "events": true, "meters": true, "limits": true, "in_limits": true},
 	"parameters": {"user": true, "ancestors": true},
-	"runtime":    {"begun": true, "calendar_flow_time": true, "attempt_id": true, "try_no": true, "task_id": true, "submitted_at": true, "started_at": true, "ended_at": true, "aborted_reason": true, "events": true, "meters": true, "repeat": true, "limits": true},
+	"runtime":    {"begun": true, "calendar_flow_time": true, "attempt_id": true, "try_no": true, "task_id": true, "submitted_at": true, "started_at": true, "ended_at": true, "aborted_reason": true, "submission_unknown_reason": true, "events": true, "meters": true, "repeat": true, "limits": true},
 	"artifacts":  {"job_ref": true, "jobout_ref": true, "orvix_info_path": true},
 	"service":    {"status": true, "status_reason": true, "halt_causes": true, "message": true, "last_checkpoint_at": true, "restore_summary": true, "generated_defaults": true},
 }
@@ -543,7 +544,7 @@ func validQueryOperation(raw json.RawMessage) bool {
 			return false
 		}
 		node, ok := obj["node"].(map[string]any)
-		if !ok || len(node) < 5 || len(node) > 6 || node["path"] != obj["path"] {
+		if !ok || len(node) < 5 || len(node) > 7 || node["path"] != obj["path"] {
 			return false
 		}
 		for _, key := range []string{"path", "node_kind", "type_id", "status", "suspended"} {
@@ -552,7 +553,7 @@ func validQueryOperation(raw json.RawMessage) bool {
 			}
 		}
 		for key := range node {
-			if key != "path" && key != "node_kind" && key != "type_id" && key != "status" && key != "suspended" && key != "attempt_id" {
+			if key != "path" && key != "node_kind" && key != "type_id" && key != "status" && key != "suspended" && key != "attempt_id" && key != "submission_unknown" {
 				return false
 			}
 		}
@@ -566,6 +567,11 @@ func validQueryOperation(raw json.RawMessage) bool {
 		if attempt, exists := node["attempt_id"]; exists && attempt != nil {
 			text, ok := attempt.(string)
 			if !ok || text == "" || kind != "task" {
+				return false
+			}
+		}
+		if unknown, exists := node["submission_unknown"]; exists && unknown != nil {
+			if unknown != true || kind != "task" || status != "submitted" || node["attempt_id"] == nil {
 				return false
 			}
 		}
@@ -739,7 +745,7 @@ func DecodeQueryV1(raw []byte, expected string) (any, error) {
 			}
 		}
 		for _, node := range v.Nodes {
-			if !validQueryPath(node.Path) || !queryKinds[node.NodeKind] || !queryStatuses[node.Status] || node.TypeID == "" || seen[node.Path] || node.AttemptID != nil && (node.NodeKind != "task" || *node.AttemptID == "") {
+			if !validQueryPath(node.Path) || !queryKinds[node.NodeKind] || !queryStatuses[node.Status] || node.TypeID == "" || seen[node.Path] || node.AttemptID != nil && (node.NodeKind != "task" || *node.AttemptID == "") || node.SubmissionUnknown != nil && (!*node.SubmissionUnknown || node.NodeKind != "task" || node.Status != "submitted" || node.AttemptID == nil) {
 				return nil, errors.New("invalid node")
 			}
 			seen[node.Path] = true
