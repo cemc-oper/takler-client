@@ -165,3 +165,35 @@ func TestFullSnapshotReadResolvesServiceBlob(t *testing.T) {
 		t.Fatalf("service = %v", view.Complete.Service)
 	}
 }
+
+func TestR3FullSnapshotPageFaultsDoNotPublishPartialView(t *testing.T) {
+	cancel := CancelFullSnapshotReply{Kind: "cancel_full_snapshot_reply", SchemaVersion: 1, Cancelled: true}
+	for _, tc := range []struct {
+		name   string
+		change func(*FullSnapshotPage)
+		want   string
+	}{
+		{"duplicate page", func(page *FullSnapshotPage) { page.PageIndex = 0 }, "page order"},
+		{"skipped page", func(page *FullSnapshotPage) { page.PageIndex = 2 }, "page order"},
+		{"changed version", func(page *FullSnapshotPage) { page.PageIndex = 1; page.StateVersion++ }, "identity"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			first := fullTestPage(t, []string{"summary"}, fullTestRow())
+			first.Complete = false
+			cursor := "next"
+			first.NextCursor = &cursor
+			first.TotalNodes, first.TotalBytes, first.SHA256 = nil, nil, nil
+			second := fullTestPage(t, []string{"summary"}, fullTestRow())
+			second.AncestorContext = nil
+			second.Service = nil
+			tc.change(&second)
+			client, transport := queryTestClient(t, fullTestCaps(), first, second, cancel)
+			if _, err := client.ReadFullSnapshot(FullSnapshotSelection{FieldGroups: []string{"summary"}}); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("fault result = %v", err)
+			}
+			if strings.Join(transport.requests, ",") != "capabilities_request,full_snapshot_request,full_snapshot_request,cancel_full_snapshot_request" {
+				t.Fatalf("lease was not cancelled: %v", transport.requests)
+			}
+		})
+	}
+}

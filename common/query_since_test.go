@@ -67,6 +67,48 @@ func TestQuerySinceStagesPagesAndSharesSparseBase(t *testing.T) {
 	}
 }
 
+func TestR3IncrementalProjectionMatchesIndependentFreshPage(t *testing.T) {
+	initial := sinceTestPage()
+	first := sinceTestDelta(0, false, 6, sinceTestUpsert("/flow", "active"))
+	last := sinceTestDelta(1, true, 6, sinceTestUpsert("/flow/task", "active"))
+	client, _ := queryTestClient(t, initial, sinceTestCapabilities(true), first, last)
+	base, err := client.ReadQuerySnapshot(QuerySelection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, err := client.ReadQuerySince(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow := queryTestNode("/flow", "flow")
+	flow.Status = "active"
+	task := queryTestNode("/flow/task", "task")
+	task.Status = "active"
+	freshPage := queryTestPage(0, true, queryTestNode("/", "bunch"), flow, task)
+	revision := int64(6)
+	freshPage.BaseRevision = &revision
+	freshClient, _ := queryTestClient(t, freshPage)
+	fresh, err := freshClient.ReadQuerySnapshot(QuerySelection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"/": "queued", "/flow": "active", "/flow/task": "active"}
+	if merged.Revision != fresh.Revision || merged.Len() != len(want) {
+		t.Fatalf("version or count differs: merged=%d/%d fresh=%d/%d", merged.Revision, merged.Len(), fresh.Revision, fresh.Len())
+	}
+	for path, status := range want {
+		fromDelta, deltaOK := merged.Node(path)
+		fromPage, pageOK := fresh.Node(path)
+		if !deltaOK || !pageOK || fromDelta.Status != status || fromPage.Status != status || fromDelta != fromPage {
+			t.Fatalf("%s: delta=%+v page=%+v expected=%s", path, fromDelta, fromPage, status)
+		}
+	}
+	oldTask, _ := base.Node("/flow/task")
+	if oldTask.Status != "queued" {
+		t.Fatalf("base view was mutated: %+v", oldTask)
+	}
+}
+
 func TestUnchangedPollsKeepDetailAvailableAfterPageExpiry(t *testing.T) {
 	page := sinceTestPage()
 	page.ExpiresAt = "2026-10-08T00:02:00Z"
