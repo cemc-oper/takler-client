@@ -107,6 +107,79 @@ server address.
 
 Run `takler_client <command> --help` for the full option list of a command.
 
+## Full snapshot API example and migration
+
+The compilable [snapshot example](examples/snapshot/main.go) uses
+`ReadFullSnapshot` for assembly and `IterFullSnapshot` for streaming. From this
+repository, against an existing server and workflow (no jobs are created):
+
+```bash
+go run ./examples/snapshot --scope /forecast
+go run ./examples/snapshot --scope / --stream --transport http
+```
+
+This example takes host/port/transport flags directly; it does not load the CLI's
+`connect.yaml`. Configure security via the client environment, or use the normal
+CLI for its configuration precedence. `FullSnapshotSelection.Depth == nil` means
+all descendants; a pointer to zero selects only the scope root. Set
+`FieldGroups` to `[]string{"summary", "parameters", "runtime"}` to limit fields;
+an omitted list selects all public groups.
+
+`ReadFullSnapshot` returns `NodesByPath` and `Complete`. Each node has `path`,
+`parent_path`, `child_paths`, `summary` and selected `groups`. Old nested show JSON
+is not the new API shape: definition attributes are in `groups.definition`, user
+and generated parameters in `groups.parameters`, calendar/attempt/values in
+`groups.runtime`, and file references in `groups.artifacts`. The completion holds
+scope-external `AncestorContext` and selected root `Service` information. Passwords
+and file contents are excluded. See the Python query guide for the full mapping.
+
+Streaming callbacks may have received nodes before a later checksum or transport
+failure. Only a non-nil completion with a nil error makes the whole read valid;
+return an error from the callback to stop. Stage output until completion, and
+discard it on failure. CLI consumers likewise require exit 0 and the final
+`complete` line; redirect to a temporary file before replacing a previous result.
+Idle/absolute leases are 300/900 seconds. The 640 MiB assembly accounting limit,
+512 MiB encoded total and 16 MiB single-field limit are distinct; streaming does
+not bypass server or field limits, and assembly accounting is not a process RSS
+guarantee.
+
+## Operational and support boundary (2026-11-03)
+
+Documentation was checked against Python source
+`ed1e0fd28934351cb7a909bda539c28731d2d09a` and Go source
+`04272786c9f774cf936adeb39ed9a18a8728b564`. This is not a new release pairing or a
+minimum-version compatibility promise. Require QueryDocument v1 and, for full
+snapshots, `full_snapshot_v1`; upgrade clients and server together. Downstream
+takflow/orvix capabilities and the historical tested pairing are recorded in the
+[support guide](https://takler.readthedocs.io/zh_CN/latest/operation/support-boundaries.html)
+(available after these documentation changes are published).
+
+For `submitted; submission unknown`, inspect runtime and artifact details with
+`show --scope /flow/task --show-all` and reconcile the current attempt with the
+external scheduler. The attempt and limit reservation remain protected across
+checkpoint recovery. Requeue, forced run and server resume do not clear this
+isolation. Only after evidence of non-submission or termination may an operator
+use single-task `force aborted /flow/task --recursive=false` (or confirmed
+`complete`); this does not cancel an external job. Never force a known running job
+terminal just to release capacity. Current automatic unknown-submit handling
+recognizes direct `orvix submit`, not arbitrary shell wrappers.
+
+Submission command limits are 128 pending/16 running per event loop, with 60-second
+queue and command deadlines; these are not external job runtime limits (a directly
+executed local script is itself the command). A timeout is not proof of external
+termination. Checkpoint is the sole recovery source: no WAL or persistent request
+deduplication, no automatic write retries, and changes after the last saved snapshot
+can be lost. `server-status` reports the saved snapshot time, not durability of
+every acknowledged write.
+
+The existing standard-tree checkpoint archives passed save-content and six offline
+restore/fallback checks, including halted state and 100101-node equality. The mixed
+100k acceptance still failed on missing send slots and response limits. R3-14 and
+R3-16 are paused and incomplete; full lifecycle, R3 and production capacity have
+not passed. This documentation work neither reruns nor closes those gates. Target
+HPC, shared storage, production RPO/RTO and long-running workloads require their
+own evidence.
+
 # Connecting to the server
 
 Address resolution, highest precedence first: `--host` / `--port` > the
