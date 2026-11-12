@@ -1,6 +1,6 @@
 // The Go half of the command surface drift guard.
 //
-// tests/client/test_cross_language_contract.py in the takler repository
+// tests/unit/client/test_cross_language_contract.py in the takler repository
 // restates, by hand, the same three tables: the seventeen RPCs with their
 // request and response types, and the ForceState / DepType name to number
 // mappings. Both halves read the tables from their own generated code and

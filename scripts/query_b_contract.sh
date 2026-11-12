@@ -8,5 +8,9 @@ export no_proxy="$NO_PROXY"
 export TAKLER_REQUIRE_PAIRED_QUERY=1
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY GRPC_PROXY http_proxy https_proxy all_proxy grpc_proxy
 cd "$TAKLER_REPO"
-uv run pytest -q tests/integration/test_query_b_matrix.py tests/server/test_query_since.py
+query_since_test=tests/integration/server/test_query_since.py
+if [[ ! -f "$query_since_test" ]]; then
+    query_since_test=tests/server/test_query_since.py
+fi
+uv run pytest -q tests/integration/test_query_b_matrix.py "$query_since_test"
 uv run python scripts/query_b_matrix_100k.py

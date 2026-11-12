@@ -143,4 +143,8 @@ jobs:
       env:
         TAKLER_SHOW_GO_CLIENT: ../takler-client/bin/takler_client
       run: |
-        uv run --no-sync pytest -q tests/packaging/test_ci_workflow.py tests/integration/test_child_identity_matrix.py tests/integration/test_server_state_cli_matrix.py tests/integration/test_show_cli_contract.py
+        workflow_test=tests/unit/packaging/test_ci_workflow.py
+        if [[ ! -f "$workflow_test" ]]; then
+          workflow_test=tests/packaging/test_ci_workflow.py
+        fi
+        uv run --no-sync pytest -q "$workflow_test" tests/integration/test_child_identity_matrix.py tests/integration/test_server_state_cli_matrix.py tests/integration/test_show_cli_contract.py

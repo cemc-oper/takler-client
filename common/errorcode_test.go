@@ -9,7 +9,7 @@ import (
 )
 
 // This file is one half of a drift guard. Its other half is the Python test
-// tests/client/test_cross_language_contract.py. Both restate the same fixed
+// tests/unit/client/test_cross_language_contract.py. Both restate the same fixed
 // tables from the m2-security design's "Cross-Language Contract" section, by
 // hand, so that a change made on one side without the matching change on the
 // other side turns into a test failure rather than a silent protocol
