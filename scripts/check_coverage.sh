@@ -4,8 +4,8 @@
 #
 # Measures per-package statement coverage of the non generated packages and
 # fails when one of them is below the threshold. It is self contained and
-# locally runnable: "make cover-check" and the CI workflow run the same command,
-# so a gate failure can be reproduced without pushing.
+# locally runnable: "make cover-check" and CI use the same command. The gated
+# test runs also supply the merged COVERAGE_PROFILE when it is requested.
 #
 # Only the hand written packages are gated:
 #   - takler_protocol is generated code (protoc-gen-go output) and is excluded.
@@ -25,6 +25,8 @@ cd "${repo_root}"
 
 profile_dir="$(mktemp -d)"
 trap 'rm -rf "${profile_dir}"' EXIT
+merged_profile="${profile_dir}/coverage.out"
+printf 'mode: set\n' >"${merged_profile}"
 
 failed=0
 
@@ -44,6 +46,7 @@ for package in "${PACKAGES[@]}"; do
         echo "coverage gate: cannot read the coverage of ${package}" >&2
         exit 1
     fi
+    tail -n +2 "${profile}" >>"${merged_profile}"
 
     printf '%-12s %9s%% %9s%%\n' "${name}" "${percent}" "${THRESHOLD}"
 
@@ -54,6 +57,11 @@ for package in "${PACKAGES[@]}"; do
     echo "coverage gate: ${package} is at ${percent}%, below the ${THRESHOLD}% threshold" >&2
     failed=1
 done
+
+if [[ -n "${COVERAGE_PROFILE:-}" ]]; then
+    mv -- "${merged_profile}" "${COVERAGE_PROFILE}"
+    go tool cover -func="${COVERAGE_PROFILE}" | tail -n 1
+fi
 
 if [[ "${failed}" -ne 0 ]]; then
     exit 1

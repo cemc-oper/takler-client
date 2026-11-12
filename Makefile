@@ -1,4 +1,4 @@
-.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract replace-contract query-a-contract query-b-contract wire-check check
+.PHONY: all vet fmt-check test cover cover-check proto-sync proto-check http-contract load-contract replace-contract query-a-contract query-b-contract wire-check check check-fast check-paired
 
 export BIN_PATH := $(shell pwd)/bin
 
@@ -32,8 +32,8 @@ cover:
 	go test -covermode=set -coverprofile=${COVERAGE_PROFILE} ./common/... ./cmd/...
 	go tool cover -func=${COVERAGE_PROFILE} | tail -n 1
 
-# cover-check is the coverage gate (requirement 16.18): per package statement
-# coverage of the non generated packages, failing below the threshold.
+# cover-check writes the merged profile and enforces the per-package coverage
+# gate for the non-generated packages (requirement 16.18).
 cover-check:
 	./scripts/check_coverage.sh
 
@@ -53,15 +53,18 @@ proto-check:
 # real takler server (M3 task 10), asserting every command's exit code and
 # output line. TAKLER_REPO points at the takler checkout, default ../takler;
 # the script builds the server environment with uv and needs the binary built
-# (make all) first. It is not part of "make check" because it needs the
-# sibling repo; CI runs it as its own job.
+# (make all) first. The full paired check calls this target.
 http-contract: all
 	TAKLER_REPO="$${TAKLER_REPO:-../takler}" bash ./scripts/http_contract.sh
 
-# check is what CI runs, and what to run locally before pushing. The CI workflow
-# invokes these same targets one per step, so that the failing step is visible in
-# the run summary while "make check" stays the single local entry point.
-check: vet fmt-check test cover-check proto-check wire-check
+# Reproduce the Go checks that run on pushes and pull requests.
+check-fast: vet fmt-check test cover-check
+
+# Include protocol drift checks against the Python checkout.
+check: check-fast proto-check wire-check
+
+check-paired:
+	bash ./scripts/check_paired.sh
 
 # Both CLIs and both transports against the paired Python checkout.
 load-contract: all

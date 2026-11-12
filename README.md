@@ -280,17 +280,19 @@ with `server.transport: http`); nothing else in the script changes.
 make            # build bin/takler_client
 make test       # go test ./...
 make cover      # write coverage.out and print the total
-make cover-check # statement coverage gate: common and cmd at 70% or above
-make check      # go vet, gofmt check, tests and the coverage gate
-make http-contract  # contract test of all commands over HTTP against a real takler server
+make cover-check   # write coverage.out and enforce 70% per package for common and cmd
+make check-fast    # run the checks used for pushes and pull requests
+make check         # include proto and wire drift checks against the Python checkout
+make check-paired  # run the full Python and Go contracts locally
 ```
 
 ## Release verification
 
 `make VERSION=v1.2.3 COMMIT=<full-commit-sha>` embeds the source identity in
-`bin/takler_client --version`. The release workflow checks out an existing tag,
-requires the latest `ci.yml` run for that exact main-branch commit and its Go
-and paired-contract jobs to pass, then builds Linux amd64 and arm64 binaries.
+`bin/takler_client --version`. Before tagging a release, manually run **ci**
+on `main` and wait for the Go and paired contract jobs to pass. The release
+workflow checks the latest manual CI run for the tag's exact commit and
+requires both jobs to succeed before building Linux amd64 and arm64 binaries.
 It records the tag, commit, CI run, and SHA-256 hashes in
 `release-manifest.json`; `SHA256SUMS` can be checked with `sha256sum -c` from
 the downloaded artifact directory.
@@ -389,39 +391,30 @@ Run `UV_CACHE_DIR=/tmp/takler-uv-cache make show-contract` to exercise both CLIs
 against the paired Python server over HTTP and gRPC, including unknown task types
 and parameter redaction. `TAKLER_REPO` selects the Python checkout.
 
-## Paired repository CI
+## Paired repository checks
 
-CI checks the other repository's `main` by default. For an unmerged protocol
-change, manually run the workflow on the current candidate ref with `peer_sha`
-set to the other candidate's full commit SHA. Empty input uses `main`.
-Both actual SHAs appear in the job log and GitHub Actions summary. Default
-reruns may pick up newer peer code; use the recorded SHAs for exact replay.
-
-Locally, prepare both checkouts and run from `takler-client/`:
+Push and pull request CI runs the Go unit tests, vet, formatting and coverage
+checks. To run the complete paired checks locally, place the Python and Go
+checkouts next to each other with the Go checkout named `takler-client`.
+Run this command from the Go checkout.
 
 ```sh
-export TAKLER_REPO=../takler
-(
-  cd "$TAKLER_REPO"
-  uv sync --locked --all-groups --extra http
-  TAKLER_CLIENT_REPO=../takler-client bash scripts/check_proto.sh
-)
-make proto-check wire-check
-make http-contract load-contract replace-contract show-contract
+TAKLER_REPO=../takler make check-paired
 ```
 
-These commands allow local edits and do not switch branches. They check proto
-freshness, shared schema/vectors, HTTP commands, and Python/Go × gRPC/HTTP
-load, replace and show behavior. No separate runner or JSON report is needed.
+The command uses the selected working trees. It installs the locked Python
+dependencies and checks proto and wire drift, the HTTP command matrix, both
+CLIs over gRPC and HTTP, child identity, service state and the 100k query cases.
 
-For protocol changes, regenerate Python bindings first, then run `make proto-sync`
-in Go against that Python checkout and commit the generated files. Validate both
-candidates locally or with the manual SHA override before merging. Prefer an
-additive server change followed by its client change, then rerun default CI.
-Regular PR checks still use peer main; a manual candidate run does not replace
-required PR checks. Incompatible changes require coordinating merge order.
-After squash/rebase, use actual merged SHAs for replay. Manual dispatch requires
-the workflow to exist on the default branch; use local checks before initial rollout.
+The paired CI job runs on manual dispatch. For an unmerged protocol change,
+dispatch **ci** on the candidate ref with `peer_sha` set to the Python
+candidate's full commit SHA. An empty input selects Python's `main`. The job
+records both actual SHAs in the log and summary. Use those SHAs to replay the
+same pair.
+
+For protocol changes, regenerate the Python bindings first. Then run
+`make proto-sync` from Go against that Python checkout and commit the generated
+files. Validate both candidates locally or with the manual SHA override.
 
 ## Job files and HPC execution
 

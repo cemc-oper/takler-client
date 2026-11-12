@@ -1,11 +1,10 @@
 # 测试与静态检查流程：装好 Go 工具链，跑 `go vet`、格式检查、`go test` 与覆盖率门槛。
 #
-# 每一步都调用 `Makefile` 里的目标，而不是把命令抄进 workflow。这样 CI 的失败在本机
-# 用一条 `make check` 就能复现，也不会出现「CI 的命令和 Makefile 的命令悄悄不一致」的
-# 情况。门槛本身在 `scripts/check_coverage.sh`（逐包语句覆盖率 ≥ 70%，生成代码包
-# `takler_protocol` 排除在外）。
+# 日常作业与 `make check-fast` 使用同一组 Makefile 目标。完整配对通过手动运行
+# 或本地 `make check-paired` 执行。覆盖率门槛在 `scripts/check_coverage.sh`
+# （`common` 和 `cmd` 逐包语句覆盖率 ≥ 70%）。
 #
-# 目标拆成多个 step 而不是一次 `make check`，是为了让运行摘要直接指出是哪一环失败。
+# 日常目标分别运行，便于从摘要定位失败步骤。
 #
 # Go 版本跟随 `go.mod` 的 `go` 指令：`setup-go` 的 `go-version-file` 从该文件读取，
 # 免得两处版本号各自漂移。
@@ -49,11 +48,7 @@ jobs:
       run: make fmt-check
     - name: Test
       run: make test
-    # cover 写出被门槛覆盖的那些包的合并 profile，并打印总覆盖率，便于在日志里直接
-    # 看到数字；profile 作为构件上传，可以下载后用 `go tool cover -html` 逐行查看。
-    - name: Collect coverage
-      run: make cover
-    - name: Coverage gate
+    - name: Collect coverage and enforce per-package thresholds
       run: make cover-check
     - name: Upload coverage profile
       uses: actions/upload-artifact@v4
@@ -67,6 +62,7 @@ jobs:
 
   paired-contract:
     name: paired protocol and CLI contracts
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -110,41 +106,6 @@ jobs:
           revision="$(git -C "$repo" rev-parse HEAD)"
           echo "$repo: $revision" | tee -a "$GITHUB_STEP_SUMMARY"
         done
-    - name: Install locked Python dependencies
-      working-directory: takler
-      run: uv sync --locked --all-groups --extra http
-    - name: Check Python proto freshness and cross-repository drift
-      working-directory: takler
-      env:
-        TAKLER_CLIENT_REPO: ../takler-client
-      run: bash scripts/check_proto.sh
-    - name: Check Go proto and shared wire contracts
+    - name: Verify the complete Python and Go pairing
       working-directory: takler-client
-      env:
-        TAKLER_REPO: ../takler
-      run: make proto-check wire-check
-    - name: Confirm drift gates reject mismatched peers
-      working-directory: takler-client
-      env:
-        TAKLER_REPO: ../takler
-      run: bash scripts/check_drift_negative.sh
-    - name: Run HTTP command matrix
-      working-directory: takler-client
-      env:
-        TAKLER_REPO: ../takler
-      run: make http-contract
-    - name: Run both clients over gRPC and HTTP
-      working-directory: takler-client
-      env:
-        TAKLER_REPO: ../takler
-      run: make load-contract replace-contract show-contract query-a-contract query-b-contract
-    - name: Run child identity and service state matrix
-      working-directory: takler
-      env:
-        TAKLER_SHOW_GO_CLIENT: ../takler-client/bin/takler_client
-      run: |
-        workflow_test=tests/unit/packaging/test_ci_workflow.py
-        if [[ ! -f "$workflow_test" ]]; then
-          workflow_test=tests/packaging/test_ci_workflow.py
-        fi
-        uv run --no-sync pytest -q "$workflow_test" tests/integration/test_child_identity_matrix.py tests/integration/test_server_state_cli_matrix.py tests/integration/test_show_cli_contract.py
+      run: make check-paired

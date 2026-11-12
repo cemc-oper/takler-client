@@ -576,10 +576,8 @@ func TestHttpTransportRetriesRetryableStatus(t *testing.T) {
 	}
 }
 
-// TestHttpTransportConnectionErrorIsRetryable drives a call against a closed
-// port: the refused connection is the HTTP form of UNAVAILABLE, so with a
-// zero window the call ends unreachable after exactly one attempt, and the
-// message names the failure as a connection error.
+// A failed dial is retryable. A zero window returns the connection error after
+// one attempt.
 func TestHttpTransportConnectionErrorIsRetryable(t *testing.T) {
 	t.Setenv(EnvRetryWindow, "0")
 	credCleanEnv(t)
@@ -588,6 +586,13 @@ func TestHttpTransportConnectionErrorIsRetryable(t *testing.T) {
 	client, err := NewTaklerServiceClient("127.0.0.1", "1", TransportHttp, SecurityLevels{})
 	if err != nil {
 		t.Fatalf("build the client: %v", err)
+	}
+	transport := client.transport.(*HttpTransport)
+	if err := transport.Open(); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	transport.client.Transport.(*http.Transport).DialContext = func(context.Context, string, string) (net.Conn, error) {
+		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("test dial refused")}
 	}
 
 	_, err = client.RunCommandComplete("/flow1/task1", testAttemptID)
